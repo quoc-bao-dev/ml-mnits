@@ -72,7 +72,21 @@ export default function ConvForward({ data, step }: ConvForwardProps) {
       {/* Visualization */}
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div>
-          <MatrixGrid data={data.input_image} cellSize={14} colorScheme="grayscale" label="Ảnh đầu vào 28×28" highlightRegion={{ row: convRow, col: convCol, size: 3 }} />
+          <MatrixGrid 
+            data={data.input_image} 
+            cellSize={14} 
+            colorScheme="grayscale" 
+            label="Ảnh đầu vào 28×28" 
+            highlightRegion={{ row: convRow, col: convCol, size: 3 }} 
+            onCellClick={(r, c) => {
+              setConvRow(Math.min(25, Math.max(0, r - 1)));
+              setConvCol(Math.min(25, Math.max(0, c - 1)));
+            }}
+            onRegionSelect={(region) => {
+              setConvRow(Math.min(25, Math.max(0, region.startRow)));
+              setConvCol(Math.min(25, Math.max(0, region.startCol)));
+            }}
+          />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
           {comp && (
@@ -98,7 +112,7 @@ export default function ConvForward({ data, step }: ConvForwardProps) {
           )}
           <div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>Feature Map (Filter {convFilter})</div>
-            <MatrixGrid data={outputSlice} cellSize={12} colorScheme="heatmap" label={`Output 26×26 – Filter ${convFilter}`} />
+            <MatrixGrid data={outputSlice} cellSize={12} colorScheme="heatmap" label={`Output 26×26 – Filter ${convFilter}`} selectedCell={{ row: convRow, col: convCol }} />
           </div>
         </div>
       </div>

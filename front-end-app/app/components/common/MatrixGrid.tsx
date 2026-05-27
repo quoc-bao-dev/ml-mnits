@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import { useState } from "react";
 
 interface MatrixGridProps {
   data: number[][];
   cellSize?: number;
-  highlightRegion?: { row: number; col: number; size: number };
+  highlightRegion?: { row: number; col: number; size?: number; width?: number; height?: number };
   colorScheme?: "grayscale" | "heatmap" | "gradient" | "diverging";
   showValues?: boolean;
   maxVal?: number;
@@ -13,6 +13,7 @@ interface MatrixGridProps {
   label?: string;
   borderColor?: string;
   onCellClick?: (row: number, col: number, value: number) => void;
+  onRegionSelect?: (region: { startRow: number; startCol: number; endRow: number; endCol: number }) => void;
   selectedCell?: { row: number; col: number } | null;
 }
 
@@ -63,8 +64,13 @@ export default function MatrixGrid({
   label,
   borderColor,
   onCellClick,
+  onRegionSelect,
   selectedCell,
 }: MatrixGridProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ row: number, col: number } | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<{ row: number, col: number } | null>(null);
+
   if (!data || data.length === 0) return null;
 
   const rows = data.length;
@@ -77,13 +83,48 @@ export default function MatrixGrid({
 
   const isHighlighted = (r: number, c: number) => {
     if (!highlightRegion) return false;
-    const { row, col, size } = highlightRegion;
-    return r >= row && r < row + size && c >= col && c < col + size;
+    const { row, col, size, width, height } = highlightRegion;
+    const h = height ?? size ?? 1;
+    const w = width ?? size ?? 1;
+    return r >= row && r < row + h && c >= col && c < col + w;
+  };
+
+  const isDragSelected = (r: number, c: number) => {
+    if (!isDragging || !dragStart || !dragCurrent) return false;
+    const minR = Math.min(dragStart.row, dragCurrent.row);
+    const maxR = Math.max(dragStart.row, dragCurrent.row);
+    const minC = Math.min(dragStart.col, dragCurrent.col);
+    const maxC = Math.max(dragStart.col, dragCurrent.col);
+    return r >= minR && r <= maxR && c >= minC && c <= maxC;
   };
 
   const isSelected = (r: number, c: number) => {
     if (!selectedCell) return false;
     return selectedCell.row === r && selectedCell.col === c;
+  };
+
+  const handleMouseDown = (r: number, c: number) => {
+    if (!onRegionSelect) return;
+    setIsDragging(true);
+    setDragStart({ row: r, col: c });
+    setDragCurrent({ row: r, col: c });
+  };
+
+  const handleMouseEnter = (r: number, c: number) => {
+    if (isDragging) {
+      setDragCurrent({ row: r, col: c });
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging && dragStart && dragCurrent) {
+      setIsDragging(false);
+      const startRow = Math.min(dragStart.row, dragCurrent.row);
+      const endRow = Math.max(dragStart.row, dragCurrent.row);
+      const startCol = Math.min(dragStart.col, dragCurrent.col);
+      const endCol = Math.max(dragStart.col, dragCurrent.col);
+      onRegionSelect?.({ startRow, startCol, endRow, endCol });
+    }
   };
 
   return (
@@ -100,6 +141,8 @@ export default function MatrixGrid({
         </div>
       )}
       <div
+        onMouseLeave={() => { if (isDragging) handleMouseUp(); }}
+        onMouseUp={handleMouseUp}
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
@@ -109,17 +152,23 @@ export default function MatrixGrid({
           borderRadius: 4,
           padding: 1,
           background: "var(--bg-primary)",
+          userSelect: "none",
         }}
       >
         {data.map((row, ri) =>
           row.map((val, ci) => {
             const highlighted = isHighlighted(ri, ci);
             const selected = isSelected(ri, ci);
+            const dragSelected = isDragSelected(ri, ci);
+            const isClickable = !!onCellClick || !!onRegionSelect;
+
             return (
               <div
                 key={`${ri}-${ci}`}
                 title={`[${ri},${ci}] = ${val.toFixed(4)}`}
                 onClick={() => onCellClick?.(ri, ci, val)}
+                onMouseDown={(e) => { e.preventDefault(); handleMouseDown(ri, ci); }}
+                onMouseEnter={() => handleMouseEnter(ri, ci)}
                 style={{
                   width: cellSize,
                   height: cellSize,
@@ -131,12 +180,12 @@ export default function MatrixGrid({
                   color: val > (computedMax + computedMin) / 2 ? "#000" : "#fff",
                   fontFamily: "var(--font-jetbrains-mono), monospace",
                   fontWeight: 500,
-                  outline: selected ? "2px solid var(--accent)" : highlighted ? "2px solid #f59e0b" : "none",
+                  outline: selected ? "2px solid var(--accent)" : (highlighted || dragSelected) ? "2px solid #f59e0b" : "none",
                   outlineOffset: -1,
-                  zIndex: selected || highlighted ? 2 : 1,
+                  zIndex: selected || highlighted || dragSelected ? 2 : 1,
                   position: "relative",
                   transition: "outline 0.15s ease",
-                  cursor: onCellClick ? "pointer" : "default",
+                  cursor: isClickable ? "pointer" : "default",
                 }}
               >
                 {showValues ? val.toFixed(2) : ""}
