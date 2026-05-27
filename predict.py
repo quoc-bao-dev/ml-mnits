@@ -23,23 +23,47 @@ MODEL_PATH = os.path.join(ROOT, "output", "model", "cnn_weights.npz")
 
 def load_image(image_path):
     """
-    Đọc ảnh từ file và chuyển về dạng 28×28 grayscale, giá trị [0, 1].
-    Hỗ trợ PNG, JPG, BMP...
+    Đọc ảnh từ file, tự động cắt biên thừa (bounding box),
+    căn giữa (centering) và chuyển về dạng 28×28 grayscale chuẩn MNIST, giá trị [0, 1].
     """
     from PIL import Image
 
     img = Image.open(image_path).convert('L')   # Chuyển sang grayscale
-    img = img.resize((28, 28))                   # Resize về 28×28
+    
+    # MNIST dùng nền đen (0) và chữ trắng (255).
+    # Kiểm tra nếu là nền trắng chữ đen thì đảo ngược màu.
+    arr = np.array(img, dtype=np.float64)
+    if arr.mean() > 127:
+        arr = 255.0 - arr
+        img = Image.fromarray(arr.astype(np.uint8))
 
-    # Chuyển thành numpy array, chuẩn hóa
+    # Tìm Bounding Box của nét vẽ để loại bỏ phần lề đen thừa
+    bbox = img.getbbox()
+    if bbox is not None:
+        # Cắt lấy riêng vùng nét vẽ
+        cropped = img.crop(bbox)
+        
+        # Giữ tỉ lệ ảnh vẽ gốc và resize về tối đa 20x20 để tránh chữ số quá to sát viền 28x28
+        w, h = cropped.size
+        ratio = min(20.0 / w, 20.0 / h)
+        new_w = max(1, int(w * ratio))
+        new_h = max(1, int(h * ratio))
+        resized = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        
+        # Tạo khung ảnh đen 28x28 và dán ảnh nét vẽ vào tâm
+        centered_img = Image.new('L', (28, 28), 0)
+        offset_x = (28 - new_w) // 2
+        offset_y = (28 - new_h) // 2
+        centered_img.paste(resized, (offset_x, offset_y))
+        img = centered_img
+    else:
+        # Nếu ảnh trống trơn, resize trực tiếp về 28x28
+        img = img.resize((28, 28))
+
+    # Chuyển thành numpy array, chuẩn hóa về [0, 1]
     arr = np.array(img, dtype=np.float64) / 255.0
-
-    # MNIST dùng nền đen (0) và chữ trắng (1).
-    # Nếu ảnh đầu vào có nền trắng → đảo ngược
-    if arr.mean() > 0.5:
-        arr = 1.0 - arr
-
     return arr
+
 
 
 def load_sample_from_mnist():
@@ -71,10 +95,28 @@ def main():
             sys.exit(1)
         print(f"\n[INFO] Đọc ảnh: {image_path}")
         image = load_image(image_path)
+        
+        # Nhãn thật có thể được truyền qua tham số thứ 2 (đối với ảnh mẫu MNIST)
         true_label = None
+        if len(sys.argv) > 2:
+            try:
+                true_label = int(sys.argv[2])
+            except ValueError:
+                pass
     else:
         print("\n[INFO] Không có ảnh đầu vào → dùng ảnh mẫu từ MNIST")
         image, true_label = load_sample_from_mnist()
+        # Lưu lại ảnh mẫu ngẫu nhiên để server/frontend có thể đọc và hiển thị
+        try:
+            from PIL import Image
+            temp_out = os.path.join(ROOT, "output", "temp_predict.png")
+            os.makedirs(os.path.dirname(temp_out), exist_ok=True)
+            img_to_save = Image.fromarray((image * 255).astype(np.uint8))
+            img_to_save.save(temp_out)
+        except Exception as e:
+            print(f"[WARN] Không thể lưu ảnh mẫu tạm thời: {e}")
+
+
 
     # Dự đoán
     pred, conf, probs = predict(conv, pool, softmax, image)
