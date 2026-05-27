@@ -12,11 +12,15 @@ import {
   WarningOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
+import ConvForward from "../../components/steps/ConvForward";
+import MaxPoolForward from "../../components/steps/MaxPoolForward";
+import SoftmaxForward from "../../components/steps/SoftmaxForward";
 
 export default function PredictPage() {
   const [predictMode, setPredictMode] = useState<"draw" | "sample">("draw");
   const [predicting, setPredicting] = useState<boolean>(false);
   const [predictStep, setPredictStep] = useState<number>(0);
+  const [viewStep, setViewStep] = useState<number>(3);
   const [predictResult, setPredictResult] = useState<any>(null);
   
   // State lưu ảnh mẫu ngẫu nhiên từ MNIST được chọn
@@ -196,6 +200,7 @@ export default function PredictPage() {
         } else {
           setPredictResult(data);
           setPredictStep(4);
+          setViewStep(3);
         }
         setPredicting(false);
       })
@@ -358,177 +363,198 @@ export default function PredictPage() {
         <Steps
           direction="vertical"
           size="small"
-          current={predictStep - 1}
+          current={predictStep === 4 ? viewStep : predictStep - 1}
+          onChange={(current) => {
+            if (predictStep === 4 && predictResult?.visualData) {
+              setViewStep(current);
+            }
+          }}
           items={[
             {
-              title: "Bước 1: Tiền xử lý & Flatten",
-              description: predictStep >= 1 ? "Chuẩn hóa pixel [0, 1] và phẳng hóa vector 1352 chiều" : "",
+              title: "Bước 1: Phép toán tích chập Conv3x3",
+              description: predictStep >= 1 ? "Trượt 8 bộ lọc 3x3 để trích xuất đặc trưng" : "",
             },
             {
-              title: "Bước 2: Phép toán tích chập Conv3x3",
-              description: predictStep >= 2 ? "Chập 8 bộ lọc 3x3 để phát hiện đặc trưng (Hàm forward)" : "",
+              title: "Bước 2: Lớp gộp cực đại (MaxPooling)",
+              description: predictStep >= 2 ? "Gộp 2x2 để giảm kích thước 50%" : "",
             },
             {
-              title: "Bước 3: Lớp gộp cực đại (MaxPooling) & Softmax",
-              description: predictStep >= 3 ? "Gộp 2x2 để trích xuất đặc trưng đặc trưng và tính xác suất lớp phân loại" : "",
+              title: "Bước 3: Lớp Linear & Softmax",
+              description: predictStep >= 3 ? "Phẳng hóa và tính phân phối xác suất 10 lớp" : "",
             },
             {
               title: "Bước 4: Kết xuất Kết quả",
-              description: predictStep >= 4 ? "Hiển thị phân phối xác suất và chữ số có độ tin cậy cao nhất" : "",
+              description: predictStep >= 4 ? "Hiển thị chữ số có độ tin cậy cao nhất" : "",
             },
           ]}
         />
 
-        {predictResult && (
+        {predictResult && predictStep === 4 && (
           <div style={{ marginTop: 12, borderTop: "1px solid var(--border-light)", paddingTop: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 20 }}>
-              <div
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 16,
-                  background: "linear-gradient(135deg, var(--accent), #a855f7)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 0 15px var(--accent-glow)",
-                }}
-              >
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>DỰ ĐOÁN</span>
-                <strong style={{ fontSize: 32, color: "#fff", lineHeight: 1, marginTop: -2 }}>
-                  {predictResult.prediction}
-                </strong>
-              </div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
-                  Chữ số dự đoán: {predictResult.prediction}
+            {viewStep === 0 && predictResult.visualData && (
+              <ConvForward data={predictResult.visualData} step={predictResult.visualData.steps[0]} />
+            )}
+            
+            {viewStep === 1 && predictResult.visualData && (
+              <MaxPoolForward data={predictResult.visualData} step={predictResult.visualData.steps[1]} />
+            )}
+            
+            {viewStep === 2 && predictResult.visualData && (
+              <SoftmaxForward data={predictResult.visualData} step={predictResult.visualData.steps[2]} />
+            )}
+            
+            {viewStep === 3 && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 20 }}>
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 16,
+                      background: "linear-gradient(135deg, var(--accent), #a855f7)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 0 15px var(--accent-glow)",
+                    }}
+                  >
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>DỰ ĐOÁN</span>
+                    <strong style={{ fontSize: 32, color: "#fff", lineHeight: 1, marginTop: -2 }}>
+                      {predictResult.prediction}
+                    </strong>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+                      Chữ số dự đoán: {predictResult.prediction}
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                      Độ tin cậy: {(predictResult.confidence * 100).toFixed(1)}%
+                    </div>
+                    {predictResult.trueLabel !== null && (
+                      <div style={{ fontSize: 13, marginTop: 4 }}>
+                        Nhãn thực tế: <strong>{predictResult.trueLabel}</strong>{" "}
+                        {predictResult.prediction === predictResult.trueLabel ? (
+                          <Badge status="success" text="Chính xác" />
+                        ) : (
+                          <Badge status="error" text="Sai lệch" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                  Độ tin cậy: {(predictResult.confidence * 100).toFixed(1)}%
+
+                {/* Phân phối xác suất các số */}
+                <div style={{ marginBottom: 24 }}>
+                  <span style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>
+                    Phân phối xác suất đầu ra (Softmax):
+                  </span>
+                  {predictResult.probabilities &&
+                    predictResult.probabilities.map((prob: number, num: number) => {
+                      const isActive = num === predictResult.prediction;
+                      return (
+                        <div key={num} className="probability-bar-container">
+                          <span className="probability-label">{num}</span>
+                          <div className="probability-bar-bg">
+                            <div
+                              className={`probability-bar-fill ${isActive ? "active" : ""}`}
+                              style={{ width: `${(prob * 100).toFixed(1)}%` }}
+                            />
+                          </div>
+                          <span className="probability-value">{(prob * 100).toFixed(1)}%</span>
+                        </div>
+                      );
+                    })}
                 </div>
-                {predictResult.trueLabel !== null && (
-                  <div style={{ fontSize: 13, marginTop: 4 }}>
-                    Nhãn thực tế: <strong>{predictResult.trueLabel}</strong>{" "}
-                    {predictResult.prediction === predictResult.trueLabel ? (
-                      <Badge status="success" text="Chính xác" />
-                    ) : (
-                      <Badge status="error" text="Sai lệch" />
+
+                {/* Khu vực sửa lỗi cho Canvas (chỉ áp dụng ở mode draw) */}
+                {predictMode === "draw" && (
+                  <div style={{
+                    marginTop: 20,
+                    padding: 16,
+                    background: "rgba(244, 63, 94, 0.05)",
+                    border: "1px dashed rgba(244, 63, 94, 0.3)",
+                    borderRadius: 12,
+                    marginBottom: 24,
+                    textAlign: "left"
+                  }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "var(--error)", marginBottom: 8 }}>
+                      <WarningOutlined />
+                      <span>Máy nhận dạng sai nét vẽ của bạn?</span>
+                    </span>
+                    <p style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 12, lineHeight: 1.4 }}>
+                      Mạng nơ-ron có thể tự cập nhật trọng số thông qua lan truyền ngược (backpropagation) để ghi nhớ nét vẽ này. Hãy chọn số bạn thực sự vẽ:
+                    </p>
+                    
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12, justifyContent: "center" }}>
+                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                        <Button
+                          key={num}
+                          size="small"
+                          type={finetuneCorrectLabel === num ? "primary" : "default"}
+                          danger={finetuneCorrectLabel === num}
+                          onClick={() => setFinetuneCorrectLabel(num)}
+                          disabled={finetuning}
+                          style={{ width: 32, padding: 0 }}
+                        >
+                          {num}
+                        </Button>
+                      ))}
+                    </div>
+
+                    <Button
+                      type="primary"
+                      danger
+                      icon={<SyncOutlined spin={finetuning} />}
+                      disabled={finetuneCorrectLabel === null || finetuning}
+                      loading={finetuning}
+                      onClick={submitFinetune}
+                      style={{ width: "100%", height: 36 }}
+                    >
+                      Cập nhật Trọng số & Sửa lỗi
+                    </Button>
+
+                    {finetuneResult && (
+                      <div style={{
+                        marginTop: 12,
+                        padding: 10,
+                        background: "rgba(16, 185, 129, 0.08)",
+                        border: "1px solid rgba(16, 185, 129, 0.2)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        lineHeight: 1.5
+                      }}>
+                        <div style={{ color: "var(--success)", fontWeight: 600, marginBottom: 4 }}>
+                          ✅ Tinh chỉnh mô hình thành công!
+                        </div>
+                        <div>
+                          • Số dự đoán cũ: <strong style={{ color: "var(--error)" }}>{finetuneResult.before.prediction}</strong> (Loss: {finetuneResult.before.loss.toFixed(4)})
+                        </div>
+                        <div>
+                          • Số dự đoán mới: <strong style={{ color: "var(--success)" }}>{finetuneResult.after.prediction}</strong> (Loss: {finetuneResult.after.loss.toFixed(4)})
+                        </div>
+                        <p style={{ margin: "6px 0 0 0", fontStyle: "italic", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>
+                          *Trọng số mạng nơ-ron tại các bộ lọc Conv & Softmax đã được cập nhật cục bộ qua Gradient Descent. Hãy bấm nút <strong>"Dự đoán số"</strong> ở trên một lần nữa để cập nhật biểu đồ!
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* Phân phối xác suất các số */}
-            <div style={{ marginBottom: 24 }}>
-              <span style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 12, color: "var(--text-primary)" }}>
-                Phân phối xác suất đầu ra (Softmax):
-              </span>
-              {predictResult.probabilities &&
-                predictResult.probabilities.map((prob: number, num: number) => {
-                  const isActive = num === predictResult.prediction;
-                  return (
-                    <div key={num} className="probability-bar-container">
-                      <span className="probability-label">{num}</span>
-                      <div className="probability-bar-bg">
-                        <div
-                          className={`probability-bar-fill ${isActive ? "active" : ""}`}
-                          style={{ width: `${(prob * 100).toFixed(1)}%` }}
-                        />
-                      </div>
-                      <span className="probability-value">{(prob * 100).toFixed(1)}%</span>
-                    </div>
-                  );
-                })}
-            </div>
-
-            {/* Khu vực sửa lỗi cho Canvas (chỉ áp dụng ở mode draw) */}
-            {predictMode === "draw" && (
-              <div style={{
-                marginTop: 20,
-                padding: 16,
-                background: "rgba(244, 63, 94, 0.05)",
-                border: "1px dashed rgba(244, 63, 94, 0.3)",
-                borderRadius: 12,
-                marginBottom: 24,
-                textAlign: "left"
-              }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "var(--error)", marginBottom: 8 }}>
-                  <WarningOutlined />
-                  <span>Máy nhận dạng sai nét vẽ của bạn?</span>
-                </span>
-                <p style={{ color: "var(--text-secondary)", fontSize: 12, marginBottom: 12, lineHeight: 1.4 }}>
-                  Mạng nơ-ron có thể tự cập nhật trọng số thông qua lan truyền ngược (backpropagation) để ghi nhớ nét vẽ này. Hãy chọn số bạn thực sự vẽ:
-                </p>
-                
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12, justifyContent: "center" }}>
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                    <Button
-                      key={num}
-                      size="small"
-                      type={finetuneCorrectLabel === num ? "primary" : "default"}
-                      danger={finetuneCorrectLabel === num}
-                      onClick={() => setFinetuneCorrectLabel(num)}
-                      disabled={finetuning}
-                      style={{ width: 32, padding: 0 }}
-                    >
-                      {num}
-                    </Button>
-                  ))}
-                </div>
-
-                <Button
-                  type="primary"
-                  danger
-                  icon={<SyncOutlined spin={finetuning} />}
-                  disabled={finetuneCorrectLabel === null || finetuning}
-                  loading={finetuning}
-                  onClick={submitFinetune}
-                  style={{ width: "100%", height: 36 }}
-                >
-                  Cập nhật Trọng số & Sửa lỗi
-                </Button>
-
-                {finetuneResult && (
-                  <div style={{
-                    marginTop: 12,
-                    padding: 10,
-                    background: "rgba(16, 185, 129, 0.08)",
-                    border: "1px solid rgba(16, 185, 129, 0.2)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    lineHeight: 1.5
-                  }}>
-                    <div style={{ color: "var(--success)", fontWeight: 600, marginBottom: 4 }}>
-                      ✅ Tinh chỉnh mô hình thành công!
-                    </div>
-                    <div>
-                      • Số dự đoán cũ: <strong style={{ color: "var(--error)" }}>{finetuneResult.before.prediction}</strong> (Loss: {finetuneResult.before.loss.toFixed(4)})
-                    </div>
-                    <div>
-                      • Số dự đoán mới: <strong style={{ color: "var(--success)" }}>{finetuneResult.after.prediction}</strong> (Loss: {finetuneResult.after.loss.toFixed(4)})
-                    </div>
-                    <p style={{ margin: "6px 0 0 0", fontStyle: "italic", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>
-                      *Trọng số mạng nơ-ron tại các bộ lọc Conv & Softmax đã được cập nhật cục bộ qua Gradient Descent. Hãy bấm nút <strong>"Dự đoán số"</strong> ở trên một lần nữa để cập nhật biểu đồ!
-                    </p>
+                {/* Ảnh vẽ biểu đồ phân phối xác suất từ python */}
+                {predictResult.chartImage && (
+                  <div>
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>
+                      Biểu đồ phân tích từ Python Engine:
+                    </span>
+                    <img
+                      src={predictResult.chartImage}
+                      alt="Prediction Probability Chart"
+                      style={{ width: "100%", borderRadius: 10, border: "1px solid var(--border)" }}
+                    />
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Ảnh vẽ biểu đồ phân phối xác suất từ python */}
-            {predictResult.chartImage && (
-              <div>
-                <span style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--text-primary)" }}>
-                  Biểu đồ phân tích từ Python Engine:
-                </span>
-                <img
-                  src={predictResult.chartImage}
-                  alt="Prediction Probability Chart"
-                  style={{ width: "100%", borderRadius: 10, border: "1px solid var(--border)" }}
-                />
-              </div>
+              </>
             )}
           </div>
         )}

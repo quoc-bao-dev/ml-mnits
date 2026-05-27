@@ -6,7 +6,7 @@ interface MatrixGridProps {
   data: number[][];
   cellSize?: number;
   highlightRegion?: { row: number; col: number; size: number };
-  colorScheme?: "grayscale" | "heatmap" | "gradient";
+  colorScheme?: "grayscale" | "heatmap" | "gradient" | "diverging";
   showValues?: boolean;
   maxVal?: number;
   minVal?: number;
@@ -28,6 +28,22 @@ function getColor(value: number, min: number, max: number, scheme: string): stri
     const g = norm < 0.5 ? Math.round(norm * 2 * 255) : Math.round((1 - norm) * 2 * 255);
     const b = norm < 0.5 ? Math.round((1 - norm * 2) * 255) : 0;
     return `rgb(${r},${g},${b})`;
+  }
+  if (scheme === "diverging") {
+    // Red (negative, norm=0) -> Dark Slate (neutral, norm=0.5) -> Green (positive, norm=1)
+    if (norm < 0.5) {
+      const t = norm * 2; // 0 to 1
+      const r = Math.round(239 * (1 - t) + 30 * t);
+      const g = Math.round(68 * (1 - t) + 41 * t);
+      const b = Math.round(68 * (1 - t) + 59 * t);
+      return `rgb(${r},${g},${b})`;
+    } else {
+      const t = (norm - 0.5) * 2; // 0 to 1
+      const r = Math.round(30 * (1 - t) + 16 * t);
+      const g = Math.round(41 * (1 - t) + 185 * t);
+      const b = Math.round(59 * (1 - t) + 129 * t);
+      return `rgb(${r},${g},${b})`;
+    }
   }
   // gradient: purple to green
   const r = Math.round((1 - norm) * 99);

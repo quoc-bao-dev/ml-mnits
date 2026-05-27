@@ -143,6 +143,10 @@ def capture_backward(conv, pool, softmax_layer, probs, label, lr):
     # Softmax backward
     grad_pool = softmax_layer.backward(gradient, lr)
 
+    target_one_hot = np.zeros(10)
+    target_one_hot[label] = 1.0
+    d_L_d_z = probs - target_one_hot
+
     softmax_step = {
         "id": 5,
         "type": "softmax_backward",
@@ -151,7 +155,9 @@ def capture_backward(conv, pool, softmax_layer, probs, label, lr):
         "description": "Tính ∂L/∂z qua Jacobian Softmax, cập nhật W và b",
         "formula": "∂L/∂W = ∂L/∂z ⊗ xᵀ  ;  W ← W - lr · ∂L/∂W",
         "initial_gradient": gradient,
+        "d_L_d_z": d_L_d_z,
         "output_gradient_shape": list(grad_pool.shape) if grad_pool is not None else None,
+        "grad_pool": grad_pool,
     }
 
     # MaxPool backward
@@ -165,8 +171,9 @@ def capture_backward(conv, pool, softmax_layer, probs, label, lr):
         "description": "Gradient chỉ chảy về vị trí đã có giá trị max (winner-take-all)",
         "formula": "∂L/∂X[i,j,f] = ∂L/∂Y[i÷2, j÷2, f] nếu X[i,j,f] là max, ngược lại = 0",
         "output_gradient_shape": list(grad_conv.shape),
-        # Gradient heatmap cho filter 0
+        # Gradient heatmap cho filter 0 (giữ nguyên để tránh break giao diện cũ nếu có)
         "gradient_heatmap_f0": grad_conv[:, :, 0],
+        "grad_conv": grad_conv,
     }
 
     # Conv backward

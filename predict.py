@@ -87,6 +87,10 @@ def main():
     # Tải model
     conv, pool, softmax = load_model(MODEL_PATH)
 
+    visualize = "--visualize" in sys.argv
+    if visualize:
+        sys.argv.remove("--visualize")
+
     # Xác định ảnh đầu vào
     if len(sys.argv) > 1:
         image_path = sys.argv[1]
@@ -119,7 +123,43 @@ def main():
 
 
     # Dự đoán
-    pred, conf, probs = predict(conv, pool, softmax, image)
+    if visualize:
+        from train_visual import capture_conv_forward, capture_maxpool_forward, capture_softmax_forward, NumpyEncoder
+        import json
+        
+        steps = []
+        conv_step, conv_out = capture_conv_forward(conv, image)
+        steps.append(conv_step)
+        
+        pool_step, pool_out = capture_maxpool_forward(pool, conv_out)
+        steps.append(pool_step)
+        
+        # Softmax forward
+        # Determine a label to use for loss calculation in capture_softmax_forward
+        temp_probs = softmax.forward(pool_out)
+        pred = int(np.argmax(temp_probs))
+        label_to_use = true_label if true_label is not None else pred
+        
+        sm_step, probs, _ = capture_softmax_forward(softmax, pool_out, label_to_use)
+        steps.append(sm_step)
+        
+        conf = float(probs[pred])
+        
+        result = {
+            "input_image": image,
+            "label": label_to_use,
+            "learning_rate": 0.005,
+            "total_steps": len(steps),
+            "steps": steps,
+        }
+        
+        visual_path = os.path.join(ROOT, "output", "visual_logs", "predict_visual_data.json")
+        os.makedirs(os.path.dirname(visual_path), exist_ok=True)
+        with open(visual_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, cls=NumpyEncoder, ensure_ascii=False)
+        print(f"VISUAL_DATA_PATH:{visual_path}")
+    else:
+        pred, conf, probs = predict(conv, pool, softmax, image)
 
     # Hiển thị kết quả
     print("\n" + "=" * 50)

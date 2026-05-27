@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 
     // 2. Trường hợp chạy dự đoán
     // Dù vẽ tay hay ảnh mẫu, ta đều chạy trên file temp_predict.png
-    let cmd = `python3 predict.py "${tempImagePath}"`;
+    let cmd = `python3 predict.py "${tempImagePath}" --visualize`;
 
     if (!useSample && image) {
       // image là chuỗi base64 của canvas vẽ tay
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       fs.writeFileSync(tempImagePath, buffer);
     } else if (useSample && trueLabel !== undefined && trueLabel !== null) {
       // Nếu dùng ảnh mẫu MNIST đã được chọn trước, truyền nhãn thật vào CLI làm tham số thứ 2
-      cmd = `python3 predict.py "${tempImagePath}" ${trueLabel}`;
+      cmd = `python3 predict.py "${tempImagePath}" ${trueLabel} --visualize`;
     }
 
 
@@ -137,6 +137,21 @@ export async function POST(req: Request) {
           console.error("Read input image error:", inputErr);
         }
 
+        // Đọc dữ liệu visualize
+        let visualData = null;
+        const visualPathMatch = outputText.match(/VISUAL_DATA_PATH:(.*)/);
+        if (visualPathMatch) {
+            try {
+                const visualPath = visualPathMatch[1].trim();
+                if (fs.existsSync(visualPath)) {
+                    const visualContent = fs.readFileSync(visualPath, 'utf8');
+                    visualData = JSON.parse(visualContent);
+                }
+            } catch (err) {
+                console.error("Parse visual data error:", err);
+            }
+        }
+
         resolve(
           NextResponse.json({
             success: true,
@@ -146,6 +161,7 @@ export async function POST(req: Request) {
             probabilities: probabilities.length === 10 ? probabilities : null,
             chartImage: chartBase64,
             inputImage: inputBase64,
+            visualData,
             rawOutput: outputText,
           })
         );
