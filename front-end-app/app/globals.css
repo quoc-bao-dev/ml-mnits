@@ -677,6 +677,198 @@ body {
   font-size: 1.15em;
 }
 
+.slide-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0 16px;
+  font-size: 15.5px;
+}
+
+.slide-body th,
+.slide-body td {
+  border: 1px solid var(--border);
+  padding: 9px 13px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.slide-body th {
+  background: rgba(99, 102, 241, 0.14);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.slide-body tbody tr:nth-child(even) td {
+  background: rgba(148, 163, 184, 0.04);
+}
+
+.slide-source {
+  margin-top: 16px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--border-light);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.slide-lead {
+  font-size: 19px;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+/* ─── Sơ đồ vòng lặp Agent ─── */
+.agent-diagram {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 10px;
+}
+
+.agent-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.agent-cycle-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Cung "lặp lại" phía trên, hình chữ U mở xuống */
+.agent-arc {
+  position: relative;
+  height: 34px;
+  margin: 0 7%;
+  border: 2px solid var(--accent);
+  border-bottom: none;
+  border-radius: 14px 14px 0 0;
+}
+
+.agent-arc::before {
+  /* mũi tên chỉ xuống node "Suy luận" */
+  content: "";
+  position: absolute;
+  left: -6px;
+  bottom: -1px;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 9px solid var(--accent);
+}
+
+.agent-arc-label {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 10px;
+  background: var(--bg-card);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--accent-light);
+}
+
+.agent-cycle {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.agent-node {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 12px;
+  text-align: center;
+}
+
+.agent-node-reason {
+  border-color: rgba(99, 102, 241, 0.55);
+  box-shadow: 0 0 18px rgba(99, 102, 241, 0.12);
+}
+
+.agent-node-act {
+  border-color: rgba(245, 158, 11, 0.55);
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.1);
+}
+
+.agent-node-observe {
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.1);
+}
+
+.agent-node-icon {
+  font-size: 30px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.agent-node-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.agent-node-desc {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.agent-conn {
+  flex-shrink: 0;
+  padding: 0 2px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent-light);
+}
+
+.agent-conn-down {
+  display: block;
+  line-height: 1;
+}
+
+.agent-exit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin-top: 10px;
+  padding-left: 9%;
+}
+
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.agent-chip-task {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent-light);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.agent-chip-answer {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.32);
+}
+
 .slide-hint {
   margin-top: 24px;
   font-size: 13px;

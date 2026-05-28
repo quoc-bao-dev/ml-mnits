@@ -1,0 +1,255 @@
+import SlideDeck from "@/app/components/slides/SlideDeck";
+import Slide from "@/app/components/slides/Slide";
+import AgentLoopDiagram from "@/app/components/slides/AgentLoopDiagram";
+
+<SlideDeck>
+
+<Slide
+  variant="cover"
+  kicker="Dành cho lập trình viên xây ứng dụng AI"
+  title="Agentic Loop & Tối ưu Token"
+  subtitle="Hiểu vòng lặp của một AI agent và cách cắt giảm hóa đơn token cho ứng dụng của bạn — kèm ví dụ nên/không nên và bảng giá thực tế"
+>
+
+Mỗi vòng lặp agent là **một lần gọi API có tính tiền**. Tối ưu token = giảm chi phí, giảm độ trễ, tăng chất lượng.
+
+<div className="slide-hint">Dùng <kbd>←</kbd> <kbd>→</kbd> hoặc <kbd>Space</kbd> để chuyển slide · <kbd>F</kbd> để toàn màn hình</div>
+
+</Slide>
+
+<Slide kicker="01 · Khái niệm" title="🔁 Agent khác gì một lần gọi API?">
+
+<div className="slide-lead">Gọi API thường: gửi 1 prompt → nhận 1 câu trả lời → kết thúc. Còn agent chạy trong một vòng lặp:</div>
+
+<AgentLoopDiagram />
+
+- Mô hình **tự điều khiển luồng**: tự chọn gọi tool nào và khi nào dừng — thay vì bạn viết kịch bản cứng.
+- Đây là cơ chế đằng sau các trợ lý lập trình, agent tra cứu tài liệu, agent thao tác file…
+- Hệ quả: agent gọi mô hình **nhiều lần** cho một nhiệm vụ ⇒ token & chi phí cộng dồn rất nhanh.
+
+</Slide>
+
+<Slide kicker="02 · Cấu trúc" title="🧩 Bốn thành phần của mỗi vòng lặp">
+
+- **System prompt** — vai trò, quy tắc, mô tả nhiệm vụ. Nội dung này *tĩnh, lặp lại mọi lượt* ⇒ ứng cử viên số một để cache.
+- **Context (lịch sử messages)** — toàn bộ hội thoại trước đó **cộng** kết quả của mọi tool đã gọi. Phần này **phình to** theo từng bước.
+- **Tools** — danh sách tên + mô tả + schema tham số để mô hình biết có thể làm gì.
+- **Điều kiện dừng** — mô hình ngừng gọi tool, đạt mục tiêu, hết ngân sách token, hoặc chạm số bước tối đa.
+
+> Điểm mấu chốt cho dev: ở **mỗi** vòng lặp, bạn gửi lại gần như **toàn bộ** context. Bạn trả tiền cho cùng một đoạn nội dung *lặp đi lặp lại*.
+
+</Slide>
+
+<Slide kicker="03 · Kiến trúc" title="🧠 Các mẫu thiết kế agent thường gặp">
+
+- **ReAct** *(Reason + Act)* — mỗi bước mô hình “suy nghĩ” rồi chọn một hành động. Đơn giản, dễ debug; phù hợp đa số ứng dụng.
+- **Plan-and-Execute** — lập kế hoạch nhiều bước trước, rồi thực thi tuần tự. Ít lần “suy luận đắt” hơn cho nhiệm vụ dài.
+- **Reflexion / tự phê bình** — agent tự kiểm tra kết quả và sửa ở vòng sau. Tăng độ chính xác, nhưng tốn thêm lượt gọi.
+- **Orchestrator–Worker** — một agent điều phối, nhiều sub-agent chuyên biệt. Nền tảng của kỹ thuật *cô lập context* (slide sau).
+
+</Slide>
+
+<Slide kicker="04 · An toàn" title="🛡️ Guardrails cần có khi đưa lên production">
+
+- **Giới hạn số bước** — chặn vòng lặp vô hạn làm “cháy” hóa đơn.
+- **Timeout + retry cho mỗi tool** — lỗi tool nên được trả về *như một kết quả quan sát* để mô hình tự sửa, thay vì làm sập cả vòng lặp.
+- **Xác nhận hành động phá hủy** — ghi/xóa dữ liệu, gửi email… cần bước phê duyệt hoặc đảm bảo *idempotent*.
+- **Phát hiện vòng lặp quẩn** — cùng một tool với cùng tham số lặp lại nhiều lần ⇒ cắt sớm.
+- **Ngân sách token** — nén hoặc dừng khi context chạm ngưỡng đã đặt.
+
+</Slide>
+
+<Slide kicker="05 · Vấn đề" title="📈 Vì sao agent “ngốn” token?">
+
+Vì mỗi bước gửi lại toàn bộ lịch sử, tổng token *xử lý* qua $N$ bước (mỗi bước thêm khoảng $t$ token) tăng theo **bậc hai**:
+
+$$
+\sum_{i=1}^{N} i \cdot t \;=\; t \cdot \frac{N(N+1)}{2} \;=\; O(N^2)
+$$
+
+**Ví dụ cụ thể:** agent chạy 20 bước, mỗi bước thêm ~2.000 token. Tổng token *được xử lý* không phải 40.000 mà ≈ $2000 \cdot \frac{20 \cdot 21}{2} =$ **420.000 token** — gấp hơn 10 lần.
+
+- Hậu quả: **chi phí tăng vọt**, **độ trễ tăng** từng bước, dễ **tràn cửa sổ ngữ cảnh**.
+- **“Context rot”**: context càng dài, mô hình càng dễ lạc trọng tâm ⇒ chất lượng *giảm*.
+
+</Slide>
+
+<Slide kicker="06 · Chi phí" title="💰 Input vs Output & bảng giá thực tế">
+
+Hai loại token tính tiền khác nhau — và **output thường đắt gấp ~5 lần input**:
+
+| Bậc mô hình | Đặc điểm | Input (USD / 1 triệu token) | Output (USD / 1 triệu token) |
+| --- | --- | --- | --- |
+| Haiku | Nhỏ, nhanh, rẻ | 1 | 5 |
+| Sonnet | Cân bằng | 3 | 15 |
+| Opus | Mạnh nhất | 15 | 75 |
+
+Phần lặp lại (system prompt, mô tả tool, lịch sử) bị tính phí **mỗi lượt gọi** — đó là nơi tiền “rò rỉ” nhiều nhất.
+
+<div className="slide-source">Nguồn: Anthropic — Bảng giá (anthropic.com/pricing). Đơn vị USD trên mỗi triệu token (MTok), bậc ngữ cảnh tiêu chuẩn (≤ 200K token). Giá có thể thay đổi — hãy kiểm tra trang chính thức trước khi tính toán.</div>
+
+</Slide>
+
+<Slide kicker="07 · Kỹ thuật 1" title="⚡ Prompt Caching — đòn bẩy lớn nhất">
+
+Đánh dấu phần **tĩnh, lặp lại** (system prompt, mô tả tool, tài liệu lớn) là *có thể cache*. Lần đầu hệ thống **ghi cache**, các lần sau **đọc cache** với giá rẻ hơn nhiều:
+
+| Thao tác với cache | Hệ số so với giá input thường | Diễn giải |
+| --- | --- | --- |
+| Ghi cache (TTL 5 phút) | × 1.25 | Lần đầu đắt hơn 25% |
+| Ghi cache (TTL 1 giờ) | × 2.0 | Giữ cache lâu hơn |
+| Đọc cache (cache hit) | × 0.1 | Rẻ hơn ~90% |
+
+- Yêu cầu tối thiểu để cache: ~1.024 token (Haiku ~2.048 token); tối đa 4 “điểm cắt” cache.
+- Cache chỉ có lợi khi cùng nội dung được dùng lại **trong vòng TTL** — rất hợp với vòng lặp agent (nhiều lượt liên tiếp).
+
+<div className="slide-source">Nguồn: Anthropic Docs — Prompt caching (docs.anthropic.com). Các hệ số và ngưỡng token có thể thay đổi theo mô hình; xác nhận tại tài liệu chính thức.</div>
+
+</Slide>
+
+<Slide kicker="08 · Kỹ thuật 1" title="⚡ Prompt Caching — ví dụ tiết kiệm & nên/không nên">
+
+**Tình huống:** agent có 20.000 token tĩnh (system + tài liệu), gọi 30 lượt trong 5 phút, dùng Sonnet (3 USD/triệu input).
+
+| Cách làm | Token input quy đổi | Chi phí phần tĩnh |
+| --- | --- | --- |
+| Không cache (30 × 20K) | 600.000 | 1.80 USD |
+| Có cache (1 ghi + 29 đọc) | 83.000 | 0.25 USD |
+| **Tiết kiệm** | — | **≈ 86%** |
+
+Cache khớp theo **tiền tố chung dài nhất** — chỉ một thay đổi ở *phía trước* là vô hiệu hóa toàn bộ cache phía sau:
+
+| ❌ Không nên | ✅ Nên |
+| --- | --- |
+| Đặt câu hỏi/đầu vào động của user lên đầu, tài liệu tĩnh xuống dưới | Đặt system + tài liệu tĩnh lên đầu, phần động xuống cuối |
+| Mỗi request có tiền tố khác nhau ⇒ cache miss 100% | Tiền tố giống nhau ⇒ cache hit cho cả 20.000 token |
+
+</Slide>
+
+<Slide kicker="09 · Kỹ thuật 2" title="🗜️ Nén lịch sử hội thoại (Compaction)">
+
+Khi context chạm ngưỡng, hãy **tóm tắt các lượt cũ** thành một đoạn “trạng thái”, giữ nguyên nhiệm vụ gốc và vài lượt gần nhất.
+
+| ❌ Không nên | ✅ Nên |
+| --- | --- |
+| Gửi lại nguyên 60 lượt hội thoại ở lượt thứ 61 | Tóm tắt 50 lượt đầu thành 1 đoạn, giữ 10 lượt gần nhất nguyên văn |
+| Để context lớn dần vô hạn đến khi tràn | Đặt ngưỡng token, tự nén khi vượt |
+
+- Có thể dùng mô hình rẻ hơn (vd Haiku) để làm việc tóm tắt.
+- **Giữ lại:** quyết định đã chốt, dữ kiện quan trọng, đường dẫn file/ID. **Bỏ:** lời chào, suy luận trung gian dài dòng.
+- Đánh đổi: nén quá tay sẽ mất “trí nhớ làm việc” ⇒ tóm tắt phải đủ để tiếp tục nhiệm vụ.
+
+</Slide>
+
+<Slide kicker="10 · Kỹ thuật 3" title="✂️ Cắt tỉa & phân trang kết quả tool">
+
+Kết quả tool (log, JSON, trang web) là “thủ phạm” phình context phổ biến nhất — và nó **ở lại trong lịch sử mãi mãi** sau khi xuất hiện.
+
+| ❌ Không nên | ✅ Nên |
+| --- | --- |
+| Đổ nguyên 5.000 dòng log vào context mỗi lần gọi tool | Trả 30 dòng quanh chỗ lỗi + tổng số dòng + con trỏ để “đọc tiếp” |
+| Trả về cả JSON 200 trường | Chỉ giữ vài trường cần thiết (projection) |
+| Nhét cả nội dung file thô vào câu trả lời | Lưu thô ra ngoài (file/DB), chỉ đưa **đường dẫn/tham chiếu** vào context |
+
+> Một kết quả tool 5.000 dòng để lại trong lịch sử sẽ bị tính tiền lại ở **mọi** bước sau đó của vòng lặp.
+
+</Slide>
+
+<Slide kicker="11 · Kỹ thuật 4" title="🔎 Truy hồi đúng lúc (Just-in-Time / RAG)">
+
+Đừng “nhồi” mọi tài liệu vào prompt cho chắc — hãy để agent **truy hồi đúng đoạn cần, đúng lúc**.
+
+| ❌ Không nên | ✅ Nên |
+| --- | --- |
+| Dán cả 40 trang tài liệu API vào system prompt mỗi request | Index tài liệu, mỗi câu hỏi truy hồi 3–5 đoạn liên quan (vài trăm token) |
+| “Để hết vào cho mô hình tự lọc” | Lọc trước bằng tìm kiếm/vector, chỉ đưa top-k vào context |
+
+- Giảm token đầu vào **và** tăng tính liên quan ⇒ mô hình ít nhiễu, trả lời sát hơn.
+- Cho agent một tool `tìm kiếm` / `đọc theo đường dẫn` để tự lấy thông tin khi cần, thay vì preload tất cả.
+
+</Slide>
+
+<Slide kicker="12 · Kỹ thuật 5" title="🧪 Cô lập context bằng Sub-agent">
+
+Giao việc “đọc nhiều, ồn ào” (quét hàng chục file, phân tích log dài) cho một **sub-agent** chạy trong context **riêng biệt**.
+
+| ❌ Không nên | ✅ Nên |
+| --- | --- |
+| Một agent “biết tuốt” nhồi mọi thứ vào một context khổng lồ | Sub-agent xử lý dữ liệu thô, chỉ trả về **tóm tắt ngắn** cho agent chính |
+| Mọi tool dùng chung một context | Mỗi sub-agent có ngân sách & bộ tool riêng (quyền tối thiểu) |
+
+- Context của agent điều phối luôn **sạch và nhỏ** ⇒ rẻ hơn và tập trung hơn.
+- “Bộ não lớn” không nằm trong một context — nó được **phân tán** qua nhiều agent.
+
+</Slide>
+
+<Slide kicker="13 · Kỹ thuật 6" title="🎚️ Định tuyến mô hình (Model Routing)">
+
+Không phải bước nào cũng cần mô hình mạnh nhất. **Việc đơn giản → mô hình rẻ; việc khó → mô hình mạnh.**
+
+**Ví dụ:** 1.000 yêu cầu phân loại đơn giản, mỗi yêu cầu ~1.000 token input + 200 token output.
+
+| Mô hình | Chi phí input | Chi phí output | Tổng / 1.000 yêu cầu |
+| --- | --- | --- | --- |
+| Opus (15 / 75) | 15 USD | 15 USD | 30 USD |
+| Haiku (1 / 5) | 1 USD | 1 USD | 2 USD |
+
+→ Dùng Haiku cho việc đơn giản: **rẻ hơn 15 lần** mà chất lượng vẫn đủ tốt.
+
+<div className="slide-source">Tính theo bảng giá ở slide 06 (Anthropic — anthropic.com/pricing). Con số minh họa cho khối lượng giả định; chi phí thực tế phụ thuộc độ dài prompt và mô hình bạn chọn.</div>
+
+</Slide>
+
+<Slide kicker="14 · Kỹ thuật 7" title="📝 Giảm độ dài output & ép cấu trúc">
+
+Vì output đắt hơn input nhiều lần (Sonnet: 15 so với 3 USD/triệu), **văn xuôi thừa là khoản tốn kém nhất** — và bạn kiểm soát được nó qua cách prompt.
+
+| ❌ Prompt | ✅ Prompt |
+| --- | --- |
+| “Hãy giải thích thật chi tiết, dài dòng, cho nhiều ví dụ…” khi chỉ cần đáp án | “Chỉ trả về tên hàm bị lỗi, đúng một dòng” |
+| Để mô hình tự do diễn giải ⇒ ~800 token output | Yêu cầu trả lời ngắn/đúng định dạng ⇒ ~10 token output |
+
+- Dùng **output có cấu trúc** (JSON theo schema / tool) để cắt bỏ lời dẫn, lời chào, giải thích thừa.
+- Nêu rõ giới hạn: “tối đa 3 gạch đầu dòng”, “chỉ trả JSON”, “không giải thích”.
+
+</Slide>
+
+<Slide kicker="15 · Đo lường" title="📊 Giảm giá theo lô & những con số cần theo dõi">
+
+- **Batch API** — với việc *không cần phản hồi tức thì* (xử lý nền, sinh dữ liệu hàng loạt), giảm **~50%** cả input lẫn output.
+- Hãy log lại sau mỗi lần gọi và theo dõi:
+  - **Tỉ lệ trúng cache** = token đọc-cache / tổng token input.
+  - **Token vào – ra** mỗi lượt và **số bước** mỗi nhiệm vụ.
+  - **Chi phí trung bình mỗi nhiệm vụ** (không chỉ mỗi request).
+
+> Nguyên tắc vàng: *cái gì đo được thì tối ưu được*. Không có số liệu thì mọi tối ưu chỉ là phỏng đoán.
+
+<div className="slide-source">Nguồn: Anthropic Docs — Batch processing & Prompt caching (docs.anthropic.com). Mức giảm 50% áp dụng cho Message Batches; xác nhận tại tài liệu chính thức.</div>
+
+</Slide>
+
+<Slide kicker="16 · Tổng kết" title="✅ Checklist thực tiễn cho dev">
+
+- **Cache** mọi nội dung tĩnh (system, mô tả tool, tài liệu) — thắng nhanh và dễ nhất.
+- Giữ phần **động ở cuối** prompt để bảo toàn cache.
+- **Cắt tỉa & phân trang** kết quả tool; lưu dữ liệu thô ra ngoài.
+- **Nén lịch sử** khi chạm ngưỡng, luôn giữ lại nhiệm vụ gốc.
+- **Truy hồi đúng lúc** thay vì preload toàn bộ tài liệu.
+- **Cô lập** việc nặng vào sub-agent, chỉ nhận lại tóm tắt.
+- **Định tuyến** mô hình theo độ khó; **ép output** ngắn gọn / có cấu trúc.
+- **Đo** tỉ lệ trúng cache và token/bước, rồi tối ưu lặp lại.
+
+</Slide>
+
+<Slide
+  variant="center"
+  kicker="Kết luận"
+  title="Context là tài nguyên quý nhất"
+  subtitle="Một agent giỏi không phải agent biết nhiều — mà là agent đưa đúng thông tin, đúng lúc, với ít token nhất."
+>
+
+Thiết kế vòng lặp gọn gàng + kỷ luật token = ứng dụng AI **rẻ, nhanh và đáng tin cậy**.
+
+</Slide>
+
+</SlideDeck>

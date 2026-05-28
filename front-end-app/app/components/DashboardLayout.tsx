@@ -10,6 +10,7 @@ import {
   BookOutlined,
   DeploymentUnitOutlined,
   FundProjectionScreenOutlined,
+  RobotOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { usePathname, useRouter } from "next/navigation";
@@ -44,7 +45,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const getSelectedKey = (): string => {
     if (pathname === "/ml/training") return "ml-training";
     if (pathname === "/ml/predict") return "ml-predict";
-    if (pathname === "/slides") return "slides";
+    if (pathname === "/slides/agentic-loop") return "slides-agentic";
+    if (pathname === "/slides") return "slides-cnn";
     if (pathname.startsWith("/doc/")) {
       const slug = pathname.replace("/doc/", "");
       return `doc-${slug}`;
@@ -84,9 +86,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ],
     },
     {
-      key: "slides",
+      key: "slides-group",
       icon: <FundProjectionScreenOutlined />,
       label: "Slide thuyết trình",
+      children: [
+        {
+          key: "slides-cnn",
+          icon: <FileTextOutlined />,
+          label: "CNN MNIST",
+        },
+        {
+          key: "slides-agentic",
+          icon: <RobotOutlined />,
+          label: "Agentic Loop & Token",
+        },
+      ],
     },
   ];
 
@@ -96,8 +110,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push("/ml/training");
     } else if (key === "ml-predict") {
       router.push("/ml/predict");
-    } else if (key === "slides") {
+    } else if (key === "slides-cnn") {
       router.push("/slides");
+    } else if (key === "slides-agentic") {
+      router.push("/slides/agentic-loop");
     } else if (key.startsWith("doc-")) {
       const slug = key.replace("doc-", "");
       router.push(`/doc/${slug}`);
@@ -112,8 +128,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (selectedKey === "ml-predict") {
       return { title: "Dự đoán chữ số", icon: <RocketOutlined style={{ color: "var(--success)" }} /> };
     }
-    if (selectedKey === "slides") {
-      return { title: "Slide thuyết trình", icon: <FundProjectionScreenOutlined style={{ color: "#a855f7" }} /> };
+    if (selectedKey === "slides-cnn") {
+      return { title: "Slide: CNN MNIST", icon: <FundProjectionScreenOutlined style={{ color: "#a855f7" }} /> };
+    }
+    if (selectedKey === "slides-agentic") {
+      return { title: "Slide: Agentic Loop & Token", icon: <RobotOutlined style={{ color: "#a855f7" }} /> };
     }
     const doc = documents.find((d) => `doc-${d.key}` === selectedKey);
     return { title: doc ? doc.title : "Tài liệu", icon: <FileTextOutlined style={{ color: "#a855f7" }} /> };
@@ -166,7 +185,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Menu
             mode="inline"
             selectedKeys={[selectedKey]}
-            defaultOpenKeys={["doc-group", "ml-group"]}
+            defaultOpenKeys={["doc-group", "ml-group", "slides-group"]}
             items={menuItems}
             onClick={handleMenuClick}
             style={{ marginTop: 8 }}
