@@ -1,0 +1,159 @@
+import SlideDeck from "@/app/components/slides/SlideDeck";
+import Slide from "@/app/components/slides/Slide";
+
+<SlideDeck>
+
+<Slide
+  variant="cover"
+  kicker="Đồ án · Toán cho Khoa học Máy tính"
+  title="Mạng Tích Chập (CNN) nhận diện chữ số viết tay MNIST"
+  subtitle="Xây dựng từ đầu hoàn toàn bằng NumPy — không dùng TensorFlow, Keras hay PyTorch"
+>
+
+Giảng viên hướng dẫn: **TS. Dương Việt Hằng**
+
+<div className="slide-hint">Dùng <kbd>←</kbd> <kbd>→</kbd> hoặc <kbd>Space</kbd> để chuyển slide · <kbd>F</kbd> để toàn màn hình</div>
+
+</Slide>
+
+<Slide kicker="01 · Tổng quan" title="🎯 Mục tiêu đồ án">
+
+- **Không dùng framework Deep Learning.** Toàn bộ *forward pass*, *backward pass* và cập nhật trọng số được lập trình thuần bằng **NumPy**.
+- **Làm rõ phần Toán.** Cho thấy các công thức Đại số tuyến tính, Giải tích nhiều biến và Đạo hàm ma trận biến thành code Python chạy thực tế ra sao.
+- **Trực quan hóa sinh động.** Hiểu bản chất của Tích chập, Gộp cực đại và Lan truyền ngược qua giao diện đồ họa tương tác.
+
+</Slide>
+
+<Slide kicker="02 · Bài toán" title="✍️ Nhận diện chữ số MNIST">
+
+- Đầu vào: ảnh xám **28 × 28** pixel của một chữ số viết tay.
+- Đầu ra: phân loại vào **10 lớp** tương ứng chữ số **0 – 9**.
+- Bộ dữ liệu MNIST: 60.000 ảnh huấn luyện + 10.000 ảnh kiểm thử.
+- Mục tiêu của mạng: học một hàm $f(\mathbf{X}) \rightarrow \mathbf{p}$, với $\mathbf{p}$ là phân phối xác suất trên 10 chữ số.
+
+</Slide>
+
+<Slide kicker="03 · Hệ thống" title="🛠️ Kiến trúc hai tầng">
+
+**1. Python Backend Engine (`src/`)** — công cụ tính toán chạy trên dòng lệnh:
+
+- `data.py` — tải, giải nén, chuẩn hóa dữ liệu MNIST.
+- `model.py` — các lớp toán học: `Conv3x3`, `MaxPool2`, `Softmax`.
+- `trainer.py` — vòng lặp huấn luyện, tính Cross-Entropy loss, ghi log.
+
+**2. Next.js Web App (`front-end-app/`)** — giao diện AI Agent:
+
+- Theo dõi huấn luyện thời gian thực, dự đoán trực quan, đọc tài liệu $\LaTeX$.
+
+</Slide>
+
+<Slide kicker="04 · Luồng dữ liệu" title="🏗️ Pipeline của mạng CNN">
+
+```text
+[Ảnh đầu vào]  28 × 28
+      │
+      ▼  Conv3x3 · 8 bộ lọc 3×3 · valid
+[Đặc trưng]   26 × 26 × 8
+      │
+      ▼  MaxPool2 · cửa sổ 2×2 · stride 2
+[Thu nhỏ]     13 × 13 × 8
+      │
+      ▼  Flatten  →  vector 1352
+      ▼  Softmax  ·  W (1352 × 10)
+[Xác suất]    10 giá trị  →  chữ số 0–9
+```
+
+</Slide>
+
+<Slide kicker="05 · Lớp 1" title="🔍 Phép Tích chập (Conv3x3)">
+
+Trượt bộ lọc $3\times 3$ qua ảnh để trích xuất biên, góc, nét cong:
+
+$$
+Y_{i,j,f} = \sum_{m=0}^{2} \sum_{n=0}^{2} X_{i+m,\,j+n} \cdot W_{f,m,n} + b_f
+$$
+
+- $W_{f,m,n}$: trọng số tại vị trí $(m,n)$ của bộ lọc $f$.
+- $b_f$: độ lệch (bias) của bộ lọc $f$.
+- 8 bộ lọc khởi tạo theo phân phối Gaussian rồi chia cho 9 để chuẩn hóa.
+
+</Slide>
+
+<Slide kicker="06 · Lớp 2" title="📉 Gộp cực đại (MaxPool2)">
+
+- **Cơ chế:** lấy giá trị lớn nhất trong mỗi vùng $2 \times 2$, bước nhảy 2 → thu nhỏ ảnh đi một nửa.
+- **Lợi ích:** giảm số tham số tính toán và tạo *bất biến dịch chuyển* nhẹ (translation invariance).
+- **Lan truyền ngược:** chỉ truyền gradient về đúng vị trí pixel lớn nhất; các vị trí còn lại nhận gradient bằng $0$.
+
+</Slide>
+
+<Slide kicker="07 · Lớp 3" title="🎲 Softmax & Cross-Entropy">
+
+Biến đầu ra tuyến tính $z$ thành phân phối xác suất:
+
+$$
+p_i = \frac{e^{z_i}}{\sum_{k=0}^{9} e^{z_k}}
+$$
+
+Hàm mất mát Cross-Entropy so phân phối dự đoán $p$ với nhãn one-hot $y$:
+
+$$
+L = -\sum_{k=0}^{9} y_k \ln(p_k) = -\ln(p_{\text{đúng}})
+$$
+
+> **Mẹo chống tràn số:** trừ $\max(z)$ trước khi tính $e^{z}$ để tránh `NaN`.
+
+</Slide>
+
+<Slide kicker="08 · Tối ưu" title="🔁 Lan truyền ngược (Backpropagation)">
+
+Đạo hàm liên hợp Softmax + Cross-Entropy rút gọn cực kỳ đẹp — đây là điểm khởi đầu của dòng gradient:
+
+$$
+\frac{\partial L}{\partial z_i} = p_i - y_i
+$$
+
+Truyền ngược về bộ lọc lớp Conv chính là một phép chập khác:
+
+$$
+\frac{\partial L}{\partial W_{f,m,n}} = \sum_{i}\sum_{j} X_{i+m,\,j+n} \cdot \frac{\partial L}{\partial Y_{i,j,f}}
+$$
+
+</Slide>
+
+<Slide kicker="09 · Tối ưu" title="⚙️ Gradient Descent">
+
+Cập nhật tham số ngược hướng gradient để giảm dần mất mát:
+
+$$
+W \leftarrow W - \eta \cdot \frac{\partial L}{\partial W}
+\qquad
+b \leftarrow b - \eta \cdot \frac{\partial L}{\partial b}
+$$
+
+- $\eta$: tốc độ học (learning rate), mặc định $\eta = 0.005$.
+- Lặp lại Forward → Loss → Backward → Update cho từng ảnh đến khi hội tụ.
+
+</Slide>
+
+<Slide kicker="10 · Demo" title="💻 Tính năng Web App">
+
+- **Huấn luyện thời gian thực** — log hệ thống chảy liên tục, biểu đồ Loss & Accuracy cập nhật ngay.
+- **Dự đoán chữ số** — vẽ tay trên canvas, tải ảnh lên, hoặc chọn ngẫu nhiên từ tập test.
+- **Trực quan hóa từng bước** — xem Conv, MaxPool, Softmax forward/backward trên ma trận thật.
+- **Tài liệu Toán học** — công thức $\LaTeX$ render bằng KaTeX.
+
+</Slide>
+
+<Slide
+  variant="center"
+  kicker="Kết luận"
+  title="Cảm ơn đã theo dõi!"
+  subtitle="Toán học không chỉ là công thức — nó là từng dòng code làm mạng nơ-ron thực sự học."
+>
+
+Một CNN hoàn chỉnh, từ tích chập đến lan truyền ngược, **chỉ với NumPy**.
+
+</Slide>
+
+</SlideDeck>

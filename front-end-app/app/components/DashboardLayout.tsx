@@ -9,6 +9,7 @@ import {
   ThunderboltOutlined,
   BookOutlined,
   DeploymentUnitOutlined,
+  FundProjectionScreenOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { usePathname, useRouter } from "next/navigation";
@@ -43,6 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const getSelectedKey = (): string => {
     if (pathname === "/ml/training") return "ml-training";
     if (pathname === "/ml/predict") return "ml-predict";
+    if (pathname === "/slides") return "slides";
     if (pathname.startsWith("/doc/")) {
       const slug = pathname.replace("/doc/", "");
       return `doc-${slug}`;
@@ -81,6 +83,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         },
       ],
     },
+    {
+      key: "slides",
+      icon: <FundProjectionScreenOutlined />,
+      label: "Slide thuyết trình",
+    },
   ];
 
   // Xử lý chuyển hướng khi click Menu
@@ -89,6 +96,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push("/ml/training");
     } else if (key === "ml-predict") {
       router.push("/ml/predict");
+    } else if (key === "slides") {
+      router.push("/slides");
     } else if (key.startsWith("doc-")) {
       const slug = key.replace("doc-", "");
       router.push(`/doc/${slug}`);
@@ -102,6 +111,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     if (selectedKey === "ml-predict") {
       return { title: "Dự đoán chữ số", icon: <RocketOutlined style={{ color: "var(--success)" }} /> };
+    }
+    if (selectedKey === "slides") {
+      return { title: "Slide thuyết trình", icon: <FundProjectionScreenOutlined style={{ color: "#a855f7" }} /> };
     }
     const doc = documents.find((d) => `doc-${d.key}` === selectedKey);
     return { title: doc ? doc.title : "Tài liệu", icon: <FileTextOutlined style={{ color: "#a855f7" }} /> };
