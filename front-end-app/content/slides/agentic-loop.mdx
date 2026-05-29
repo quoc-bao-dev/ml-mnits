@@ -67,7 +67,7 @@ $$
 \sum_{i=1}^{N} i \cdot t \;=\; t \cdot \frac{N(N+1)}{2} \;=\; O(N^2)
 $$
 
-**Ví dụ cụ thể:** agent chạy 20 bước, mỗi bước thêm ~2.000 token. Tổng token *được xử lý* không phải 40.000 mà ≈ $2000 \cdot \frac{20 \cdot 21}{2} =$ **420.000 token** — gấp hơn 10 lần.
+**Ví dụ cụ thể:** agent chạy 20 bước, mỗi bước thêm ~2.000 token. Tổng token *được xử lý* không phải 40.000 mà ≈ $2000 \cdot \frac\{20 \cdot 21\}\{2\} =$ **420.000 token** — gấp hơn 10 lần.
 
 - Hậu quả: **chi phí tăng vọt**, **độ trễ tăng** từng bước, dễ **tràn cửa sổ ngữ cảnh**.
 - **“Context rot”**: context càng dài, mô hình càng dễ lạc trọng tâm ⇒ chất lượng *giảm*.
