@@ -7,14 +7,31 @@ const projectRoot = path.resolve(process.cwd(), "..");
 const tempImagePath = path.join(projectRoot, "output", "temp_predict.png");
 const predictionChartPath = path.join(projectRoot, "output", "charts", "prediction_single.png");
 
+function loadEnvConfig() {
+  const envPath = path.join(projectRoot, ".env");
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, "utf-8");
+    envContent.split("\n").forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+        const [key, ...rest] = trimmed.split("=");
+        process.env[key.trim()] = rest.join("=").trim();
+      }
+    });
+  }
+}
+
 export async function POST(req: Request) {
+  loadEnvConfig();
+  const pythonPath = process.env.PYTHON_PATH || "python3";
+
   try {
     const body = await req.json();
     const { image, useSample, action, trueLabel } = body;
 
     // 1. Trường hợp chỉ chọn ảnh mẫu ngẫu nhiên từ MNIST (chưa dự đoán)
     if (action === "select_sample") {
-      const selectCmd = `python3 select_sample.py`;
+      const selectCmd = `"${pythonPath}" select_sample.py`;
       return new Promise<NextResponse>((resolve) => {
         exec(selectCmd, { cwd: projectRoot }, (error, stdout, stderr) => {
           if (error) {
@@ -56,7 +73,7 @@ export async function POST(req: Request) {
 
     // 2. Trường hợp chạy dự đoán
     // Dù vẽ tay hay ảnh mẫu, ta đều chạy trên file temp_predict.png
-    let cmd = `python3 predict.py "${tempImagePath}" --visualize`;
+    let cmd = `"${pythonPath}" predict.py "${tempImagePath}" --visualize`;
 
     if (!useSample && image) {
       // image là chuỗi base64 của canvas vẽ tay
@@ -68,7 +85,7 @@ export async function POST(req: Request) {
       fs.writeFileSync(tempImagePath, buffer);
     } else if (useSample && trueLabel !== undefined && trueLabel !== null) {
       // Nếu dùng ảnh mẫu MNIST đã được chọn trước, truyền nhãn thật vào CLI làm tham số thứ 2
-      cmd = `python3 predict.py "${tempImagePath}" ${trueLabel} --visualize`;
+      cmd = `"${pythonPath}" predict.py "${tempImagePath}" ${trueLabel} --visualize`;
     }
 
 

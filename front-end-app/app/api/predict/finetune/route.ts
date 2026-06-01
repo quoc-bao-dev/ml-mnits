@@ -6,7 +6,24 @@ import fs from "fs";
 const projectRoot = path.resolve(process.cwd(), "..");
 const tempImagePath = path.join(projectRoot, "output", "temp_predict.png");
 
+function loadEnvConfig() {
+  const envPath = path.join(projectRoot, ".env");
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, "utf-8");
+    envContent.split("\n").forEach((line) => {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+        const [key, ...rest] = trimmed.split("=");
+        process.env[key.trim()] = rest.join("=").trim();
+      }
+    });
+  }
+}
+
 export async function POST(req: Request) {
+  loadEnvConfig();
+  const pythonPath = process.env.PYTHON_PATH || "python3";
+
   try {
     const { correctLabel } = await req.json();
 
@@ -24,7 +41,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const cmd = `python3 finetune.py "${tempImagePath}" ${correctLabel}`;
+    const cmd = `"${pythonPath}" finetune.py "${tempImagePath}" ${correctLabel}`;
 
     return new Promise<NextResponse>((resolve) => {
       exec(cmd, { cwd: projectRoot }, (error, stdout, stderr) => {
