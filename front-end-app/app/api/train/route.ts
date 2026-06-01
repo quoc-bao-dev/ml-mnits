@@ -76,8 +76,8 @@ export async function POST() {
   isTraining = true;
   trainingLogs = ["🚀 Đang khởi động tiến trình huấn luyện CNN thuần NumPy...\n"];
 
-  // Chạy file train.py bằng python3
-  const pythonPath = "python3";
+  // Chạy file train.py bằng python từ venv (đọc từ .env PYTHON_PATH)
+  const pythonPath = process.env.PYTHON_PATH || "python3";
   const scriptPath = path.join(projectRoot, "train.py");
 
   try {
@@ -98,6 +98,12 @@ export async function POST() {
     trainProcess.stderr.on("data", (data: Buffer) => {
       const text = data.toString();
       trainingLogs.push(`⚠️ [ERROR] ${text}`);
+    });
+
+    trainProcess.on("error", (err: Error) => {
+      isTraining = false;
+      trainingLogs.push(`❌ Không thể khởi động Python: ${err.message}`);
+      trainProcess = null;
     });
 
     trainProcess.on("close", (code: number) => {
