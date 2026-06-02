@@ -1,0 +1,676 @@
+import SlideDeck from "@/app/components/slides/SlideDeck";
+import Slide from "@/app/components/slides/Slide";
+
+<SlideDeck>
+
+{/* ═══════════════════════════════ 0. COVER ═══════════════════════════════ */}
+
+<Slide
+  variant="cover"
+  kicker="Đồ án · Toán cho Khoa học Máy tính"
+  title="Backpropagation trong CNN"
+  subtitle="Từ sai số đến điều chỉnh trọng số"
+>
+
+Mạng học bằng cách nào? Cả bộ slide này tập trung trả lời đúng một câu hỏi đó — qua năm phần và một ví dụ chạy được trên máy.
+
+<div className="slide-hint">Dùng <kbd>←</kbd> <kbd>→</kbd> hoặc <kbd>Space</kbd> để chuyển slide · <kbd>F</kbd> để toàn màn hình</div>
+
+</Slide>
+
+{/* ═══════════════════════════════ TOC ═══════════════════════════════ */}
+
+<Slide kicker="Mục lục" title="🗂️ Nội dung trình bày">
+
+Bài thuyết trình gồm 5 phần, đi theo đúng dòng chảy của một lượt huấn luyện:
+
+1. **CNN và cơ sở toán học** — xây nền: tensor, tích chập, chain rule, loss.
+2. **Forward Pipeline** — dữ liệu đi từ ảnh đầu vào đến xác suất 10 chữ số.
+3. **Backward Pipeline** — sai số chảy ngược, lần ra ba ma trận cần sửa.
+4. **Ví dụ thật với chữ số 7** — chạy đầy đủ một lượt forward + loss.
+5. **Điều chỉnh tham số** — áp dụng công thức, đọc ra giá trị thay đổi.
+
+> Xen kẽ: vì sao chọn pipeline này, gọi tên nó là gì, và so sánh với những cách tiếp cận khác.
+
+</Slide>
+
+{/* ═══════════════════════════ PHẦN 1: CNN & TOÁN ═══════════════════════════ */}
+
+<Slide kicker="01 · Phần 1" title="🧠 CNN là gì?">
+
+**CNN** (Convolutional Neural Network — *Mạng nơ-ron tích chập*) là một mạng nơ-ron đặc biệt: thay vì cho mọi neuron nhìn toàn bộ ảnh, nó dùng các **bộ lọc nhỏ trượt khắp ảnh** để khai thác cấu trúc không gian.
+
+Ba ý tưởng làm nên sức mạnh của CNN:
+
+- **Vùng nhìn cục bộ** — mỗi neuron chỉ quan sát một ô $3\times 3$, đủ để nhận ra một nét nhỏ.
+- **Trọng số dùng chung** — cùng một bộ lọc trượt khắp ảnh, nên mạng học một lần là áp dụng được ở mọi vị trí.
+- **Học theo tầng** — lớp dưới học các nét cơ bản (cạnh, góc), lớp trên gộp lại thành hình.
+
+> Kiến trúc kinh điển: **LeNet-5** của Yann LeCun (1998) — CNN đầu tiên thành công trên bài toán nhận diện chữ số MNIST.
+
+</Slide>
+
+<Slide kicker="01 · Cơ sở toán" title="📐 Tensor và ma trận">
+
+Trước khi nói về CNN, cần thống nhất ngôn ngữ. Mọi thứ trong mạng đều là số được tổ chức theo chiều:
+
+- **Vector** (1 chiều): $\mathbf{x} \in \mathbb{R}^n$ — một dãy số.
+- **Ma trận** (2 chiều): $W \in \mathbb{R}^{m \times n}$ — một bảng số.
+- **Tensor** (3+ chiều): $X \in \mathbb{R}^{H \times W \times C}$ — một khối số, dùng cho ảnh nhiều kênh.
+
+Ba phép toán xuất hiện liên tục trong cả forward lẫn backward:
+
+$$
+\text{Tích vô hướng:} \quad \langle \mathbf{a}, \mathbf{b}\rangle = \sum_i a_i \, b_i
+$$
+
+$$
+\text{Tích chập 2D:} \quad (X \ast W)_{i,j} = \sum_{m,n} X_{i+m,\,j+n} \cdot W_{m,n}
+$$
+
+$$
+\text{Tích ngoài:} \quad (\mathbf{a} \otimes \mathbf{b})_{i,j} = a_i \cdot b_j
+$$
+
+</Slide>
+
+<Slide kicker="01 · Cơ sở toán" title="∂ Chain Rule — chìa khoá của backprop">
+
+Nếu $L$ phụ thuộc vào $\mathbf{y}$, mà $\mathbf{y}$ lại phụ thuộc vào $\mathbf{x}$, thì đạo hàm của $L$ theo $\mathbf{x}$ là tích hai bước:
+
+$$
+\frac{\partial L}{\partial x_j} = \sum_i \frac{\partial L}{\partial y_i} \cdot \frac{\partial y_i}{\partial x_j}
+$$
+
+Viết gọn dưới dạng ma trận, với $J$ là ma trận Jacobian:
+
+$$
+\frac{\partial L}{\partial \mathbf{x}} = J^T \cdot \frac{\partial L}{\partial \mathbf{y}}, \qquad J = \frac{\partial \mathbf{y}}{\partial \mathbf{x}}
+$$
+
+Có thể hiểu nôm na: *"đạo hàm hợp = nhân đạo hàm từng đoạn"*. **Backpropagation** chính là việc áp dụng quy tắc này lặp đi lặp lại, đi từ Loss ngược về từng tham số.
+
+</Slide>
+
+<Slide kicker="01 · Cơ sở toán" title="🎯 Loss và Gradient Descent">
+
+**Loss** là một con số duy nhất đo *"mạng đang sai bao nhiêu"*. Trong bài toán phân loại, ta dùng Cross-Entropy:
+
+$$
+L = -\ln(p_{\text{label}})
+$$
+
+- Khi mạng đoán đúng với xác suất gần 1, $L \to 0$.
+- Khi mạng tự tin đoán sai, $p_{\text{label}} \to 0$ và $L \to \infty$ — bị phạt nặng.
+
+Sau khi biết được Loss, ta dùng **Gradient Descent** để giảm nó từng bước:
+
+$$
+\boxed{\theta \leftarrow \theta - \eta \cdot \frac{\partial L}{\partial \theta}}
+$$
+
+trong đó $\theta$ là tham số bất kỳ (filter, weight, bias), còn $\eta$ là tốc độ học (project dùng $\eta = 0.005$). Dấu trừ giúp đi *ngược* hướng gradient — tức là đi xuống dốc của hàm Loss.
+
+</Slide>
+
+{/* ═══════════════════════════ PHẦN 2: FORWARD ═══════════════════════════ */}
+
+<Slide kicker="02 · Phần 2" title="🏗️ Forward Pipeline — bức tranh tổng quan">
+
+Trước khi đi sâu, đây là toàn bộ hành trình một ảnh đi qua mạng:
+
+```text
+[Ảnh]  28 × 28
+   │
+   ▼  Conv3x3 · 8 bộ lọc  →  trích nét (cạnh, góc)
+[Feature map]  26 × 26 × 8
+   │
+   ▼  MaxPool 2×2  →  giảm chiều, bất biến dịch chuyển
+[Pool]  13 × 13 × 8
+   │
+   ▼  Flatten · Dense · Softmax
+[Xác suất]  10  →  chữ số 0–9
+```
+
+Pipeline này có tên gọi quen thuộc trong học thuật là **LeNet-style** — tuần tự *Conv → Pool → FC → Softmax*. Ba slide tiếp theo sẽ mở từng hộp đen.
+
+</Slide>
+
+<Slide kicker="02 · Lớp 1" title="🔍 Conv3x3 — phép tích chập">
+
+Mỗi bộ lọc $3\times 3$ trượt khắp ảnh, ở mỗi vị trí cho ra một con số bằng cách nhân từng pixel với từng ô của bộ lọc rồi cộng tổng:
+
+$$
+Y_{i,j,f} = \sum_{m=0}^{2}\sum_{n=0}^{2} X_{i+m,\,j+n} \cdot W_{f,m,n}
+$$
+
+Mạng dùng đồng thời **8 bộ lọc**, nên đầu ra là một khối 3D có 8 lát cắt — mỗi lát đại diện cho một loại nét được phát hiện trên ảnh.
+
+- Đầu vào: $(28, 28)$ → đầu ra: $(26, 26, 8)$.
+- Mất 2 pixel mỗi chiều vì bộ lọc không có padding ở viền.
+- Số tham số học được: $8 \times 3 \times 3 = 72$.
+
+</Slide>
+
+<Slide kicker="02 · Lớp 2" title="📉 MaxPool2 — gộp cực đại">
+
+Sau khi trích đặc trưng, ta cần *cô đặc* lại để mạng vừa nhanh hơn vừa ít nhạy với dịch chuyển. MaxPool chia ảnh thành các ô $2\times 2$ không chồng lấp và **giữ lại giá trị lớn nhất** trong mỗi ô:
+
+$$
+Y_{i,j,f} = \max_{m,n \in \{0,1\}} X_{2i+m,\,2j+n,\,f}
+$$
+
+- Đầu vào: $(26, 26, 8)$ → đầu ra: $(13, 13, 8)$ — kích thước giảm một nửa.
+- Lớp này **không có tham số học** (chỉ là phép so sánh).
+- Tạo *bất biến dịch chuyển nhẹ*: chữ số dịch 1 pixel, kết quả gần như không đổi.
+
+</Slide>
+
+<Slide kicker="02 · Lớp 3" title="🎲 Softmax — biến điểm số thành xác suất">
+
+Sau Pool, ta có một khối $(13, 13, 8)$ — duỗi thẳng (flatten) thành vector dài 1352 phần tử. Lớp Dense biến vector đó thành 10 *logits* (một điểm số thô cho mỗi chữ số):
+
+$$
+\mathbf{z} = W^{sm} \, \mathbf{x} + \mathbf{b}^{sm}, \qquad W^{sm} \in \mathbb{R}^{1352 \times 10}
+$$
+
+Cuối cùng, Softmax chuẩn hoá các logits thành xác suất (tổng bằng 1):
+
+$$
+p_i = \frac{e^{z_i}}{\sum_{k=0}^{9} e^{z_k}}, \qquad \sum_i p_i = 1
+$$
+
+> **Mẹo chống tràn số:** trừ $\max(\mathbf{z})$ trước khi tính $e^z$. Không đổi kết quả, nhưng tránh `NaN` khi logits quá lớn.
+
+**Số tham số học được:** $1352 \times 10 + 10 = 13{,}530$.
+
+</Slide>
+
+<Slide kicker="02 · Pipeline" title="❓ Vì sao chọn đúng ba lớp này?">
+
+Mỗi lớp giải một bài toán riêng, và bỏ đi lớp nào thì mạng yếu đi lớp đó:
+
+| Lớp | Vai trò | Hậu quả nếu bỏ |
+|---|---|---|
+| **Conv** | Trích đặc trưng cục bộ (cạnh, góc) | MLP thuần phải học mọi pattern ở mọi vị trí — tốn triệu tham số |
+| **Pool** | Giảm chiều, bất biến dịch chuyển | Tính toán chậm, dễ học vẹt |
+| **Softmax** | Biến điểm số thành xác suất | Mất tính diễn giải "tin cậy bao nhiêu phần trăm" |
+
+Đây chính là khái niệm **inductive bias**: kiến trúc *biết trước* rằng ảnh có cấu trúc 2D và pattern lặp lại theo vị trí, nên cần ít dữ liệu để học hơn rất nhiều so với một mạng "vô tư".
+
+</Slide>
+
+<Slide kicker="02 · So sánh" title="⚖️ LeNet đứng ở đâu giữa các lựa chọn?">
+
+Cùng một bài toán MNIST có thể giải bằng nhiều cách khác nhau:
+
+| Pipeline | Đặc điểm | Accuracy MNIST | Tham số |
+|---|---|---|---|
+| **MLP thuần** (Flatten → Dense × 2) | Không khai thác cấu trúc 2D | ~95% | ~50K |
+| **K-Nearest Neighbors** | Không cần train, chậm khi predict | ~97% | 0 (giữ cả tập train) |
+| **SVM + HOG** | Trích đặc trưng thủ công | ~98% | Vài K |
+| **LeNet (project này)** | Cân bằng đơn giản và hiệu quả | ~85–95% | ~14K |
+| **LeNet-5 đầy đủ** | Thêm một tầng Conv–Pool nữa | ~99% | ~60K |
+| **Vision Transformer** | Patches + self-attention | ~99% | Hàng triệu (overkill) |
+
+LeNet *project này* là sự đánh đổi đẹp: **đủ đơn giản để giải thích từng dòng code, đủ tốt để chạy MNIST**.
+
+</Slide>
+
+{/* ═══════════════════════════ PHẦN 3: BACKWARD ═══════════════════════════ */}
+
+<Slide kicker="03 · Phần 3" title="🔁 Backward Pipeline — sai số chảy ngược">
+
+Khi đã có Loss, ta cần lần ngược từ Loss về từng tham số để biết phải sửa cái gì. Đây chính là *backward pass*:
+
+```text
+Loss  ─►  ∂L/∂p   ─►  ∂L/∂z  =  p − y          (qua Softmax + CE)
+                       │
+                       ├─►  ∂L/∂W^sm,  ∂L/∂b^sm   ← CẬP NHẬT
+                       │
+                       ▼
+                  ∂L/∂x_flat  →  reshape → ∂L/∂Y_pool
+                                   │
+                                   ▼   (winner-take-all)
+                              ∂L/∂Y_conv
+                                   │
+                                   ▼
+                            ∂L/∂W^conv             ← CẬP NHẬT
+```
+
+Toàn bộ vòng backward chỉ chạm vào **3 ma trận**: `softmax.biases`, `softmax.weights`, và `conv.filters`. Ba slide sau lần lượt mở từng cái.
+
+</Slide>
+
+<Slide kicker="03 · Bước 0" title="🎯 Gradient xuất phát tại output">
+
+Hành trình bắt đầu ở đầu ra của Softmax. Vì $L = -\ln(p_{\text{label}})$, đạo hàm chỉ khác 0 tại đúng vị trí nhãn đúng:
+
+$$
+\frac{\partial L}{\partial p_c} = \begin{cases} -\dfrac{1}{p_{\text{label}}} & \text{nếu } c = \text{label} \\ 0 & \text{ngược lại} \end{cases}
+$$
+
+Vector gradient ban đầu vì vậy rất *thưa* — gần như toàn 0, chỉ có một giá trị lớn ở vị trí lớp đúng. Đây là tín hiệu duy nhất mà mạng dùng để học, và nó sẽ được "phân phối" ngược về mọi tham số ở các bước sau.
+
+</Slide>
+
+<Slide kicker="03 · Bước 1" title="✨ Qua Softmax: công thức rút gọn đẹp">
+
+Áp dụng Chain Rule, ta cần Jacobian của hàm Softmax:
+
+$$
+\frac{\partial p_i}{\partial z_j} = \begin{cases} p_i(1-p_i) & \text{nếu } i = j \\ -p_i p_j & \text{nếu } i \neq j \end{cases}
+$$
+
+Khi nhân Jacobian này với gradient ban đầu, mọi thứ rút gọn về một công thức cực kỳ gọn:
+
+$$
+\boxed{\frac{\partial L}{\partial \mathbf{z}} = \mathbf{p} - \mathbf{y}}
+$$
+
+> *"Sai bao nhiêu thì gradient bằng bấy nhiêu."* Đây cũng là lý do PyTorch và TensorFlow luôn ghép Softmax + Cross-Entropy thành một hàm duy nhất — vừa nhanh hơn, vừa ổn định số học hơn.
+
+</Slide>
+
+<Slide kicker="03 · Bước 2" title="📦 Gradient theo Weights và Biases">
+
+Từ $\partial L / \partial \mathbf{z}$, ba đại lượng tiếp theo được tính trực tiếp.
+
+**Bias** — đạo hàm dễ nhất vì $\partial z_c / \partial b_c = 1$:
+
+$$
+\frac{\partial L}{\partial \mathbf{b}^{sm}} = \mathbf{p} - \mathbf{y}
+$$
+
+**Weights** — tích ngoài giữa input đã flatten và gradient logits:
+
+$$
+\frac{\partial L}{\partial W^{sm}} = \mathbf{x}^{flat} \otimes (\mathbf{p} - \mathbf{y})
+$$
+
+**Gradient theo input** — để truyền tiếp về Pool:
+
+$$
+\frac{\partial L}{\partial \mathbf{x}^{flat}} = W^{sm} \cdot (\mathbf{p} - \mathbf{y})
+$$
+
+Sau cùng, vector $(1352,)$ được reshape về khối $(13, 13, 8)$ để khớp với đầu ra của Pool.
+
+</Slide>
+
+<Slide kicker="03 · Bước 3" title="🏆 Qua MaxPool: chỉ winner mới nhận gradient">
+
+MaxPool không có tham số học, nên không cần cập nhật gì. Việc duy nhất nó làm là *định tuyến* gradient ngược lại đúng vị trí đã "chiến thắng" lúc forward:
+
+$$
+\frac{\partial L}{\partial X_{2i+m,\,2j+n,\,f}} = \begin{cases} \dfrac{\partial L}{\partial Y_{i,j,f}} & \text{nếu } X \text{ là max của ô } 2\times 2 \\ 0 & \text{nếu không} \end{cases}
+$$
+
+- Khoảng 75% phần tử của gradient bằng 0 — chỉ 1/4 phần tử (một winner mỗi ô $2\times 2$) còn lại tín hiệu.
+- Shape gradient: $(13, 13, 8) \to (26, 26, 8)$ — đúng cỡ feature map gốc của Conv.
+
+</Slide>
+
+<Slide kicker="03 · Bước 4" title="🔃 Qua Conv: backward cũng là một tích chập">
+
+Khi tính gradient theo filter, ta nhận ra một điều thú vị: **bản thân phép tính đó cũng là một tích chập** — giữa ảnh đầu vào và "gradient map" vừa nhận từ Pool:
+
+$$
+\boxed{\frac{\partial L}{\partial W^{conv}_{f,m,n}} = \sum_{i,j} X_{i+m,\,j+n} \cdot \frac{\partial L}{\partial Y_{i,j,f}}}
+$$
+
+Cập nhật filter theo Gradient Descent:
+
+$$
+W^{conv}_f \leftarrow W^{conv}_f - \eta \cdot \frac{\partial L}{\partial W^{conv}_f}
+$$
+
+> Conv là **lớp đầu mạng**, không còn gì phía trước nó, nên không cần truyền gradient ngược nữa (trong code: `return None`).
+
+</Slide>
+
+<Slide kicker="03 · Quy tắc" title="📏 Quy tắc nhớ nhanh cho mọi bước">
+
+Khi viết code, cách dễ nhất để biết công thức đúng hay sai là kiểm tra shape:
+
+> **Gradient của Loss theo $X$ luôn có cùng shape với $X$.**
+
+| Đại lượng | Shape | Gradient shape |
+|---|---|---|
+| $\mathbf{z}$ (logits) | $(10,)$ | $(10,)$ |
+| $W^{sm}$ | $(1352, 10)$ | $(1352, 10)$ |
+| $\mathbf{b}^{sm}$ | $(10,)$ | $(10,)$ |
+| $Y^{pool}$ | $(13, 13, 8)$ | $(13, 13, 8)$ |
+| $Y^{conv}$ | $(26, 26, 8)$ | $(26, 26, 8)$ |
+| $W^{conv}$ | $(8, 3, 3)$ | $(8, 3, 3)$ |
+
+Cùng shape thì *có thể* đúng, khác shape thì *chắc chắn* sai — đây là kỹ năng debug hữu ích nhất.
+
+</Slide>
+
+{/* ═══════════════════════════ PHẦN 4: VÍ DỤ ═══════════════════════════ */}
+
+<Slide kicker="04 · Phần 4" title="🖼️ Một ví dụ thật: chữ số 7">
+
+Lý thuyết đã đủ — giờ chạy một lượt với số liệu thật. Setup để bạn có thể tái lập trên máy mình:
+
+- Ảnh đầu vào: `X_test[0]` trong MNIST — một chữ số **7**.
+- Seed cố định: `np.random.seed(42)`.
+- Learning rate: $\eta = 0.005$.
+- Mạng **chưa qua train** — toàn bộ trọng số ngẫu nhiên ban đầu.
+
+```text
+            **####**....                  
+            ##############################
+            ..**..**######################
+                        ..  ........  ####
+                                    **####
+                                ..####    
+                              **####      
+                            ##########    
+                       .....######        
+                       **####             
+```
+
+Mọi con số ở các slide tiếp theo đều xuất phát từ `python3 backup/trace_example.py`.
+
+</Slide>
+
+<Slide kicker="04 · Khởi tạo" title="🎲 Ba ma trận, ba cách khởi tạo">
+
+Mạng vừa khởi tạo có ba ma trận chờ học:
+
+| Ma trận | Shape | Cách khởi tạo | Số phần tử |
+|---|---|---|---|
+| `conv.filters` | $(8, 3, 3)$ | $\mathcal{N}(0,1) \,/\, 9$ | 72 |
+| `softmax.weights` | $(1352, 10)$ | $\mathcal{N}(0,1) \,/\, 1352$ | 13,520 |
+| `softmax.biases` | $(10,)$ | toàn 0 | 10 |
+
+**Vì sao phải chia cho số đầu vào (fan-in)?** Để phương sai của output xấp xỉ phương sai của input — tránh hiện tượng gradient phồng to (*exploding*) hoặc tan biến (*vanishing*). Đây là biến thể đơn giản của khởi tạo *Xavier* / *Glorot*.
+
+**Vì sao trọng số không thể toàn bằng 0?** Khi mọi neuron giống nhau, gradient của chúng cũng giống nhau và mạng không bao giờ phân hoá được — kinh điển gọi là *symmetry problem*.
+
+</Slide>
+
+<Slide kicker="04 · Khởi tạo" title="🔬 Filter 0 trông như thế nào?">
+
+Để minh hoạ, đây là bộ lọc đầu tiên ngay sau khi khởi tạo:
+
+$$
+W^{conv}_0 = \begin{bmatrix}
+0.0552 & -0.0154 & 0.0720 \\
+0.1692 & -0.0260 & -0.0260 \\
+0.1755 & 0.0853 & -0.0522
+\end{bmatrix}
+$$
+
+- Đây là **số ngẫu nhiên thuần tuý** — chưa mang ý nghĩa hình học.
+- Toàn bộ 8 filter có thống kê: $\mu = -0.012$, $\sigma = 0.10$, range $[-0.22, +0.21]$.
+- Vector bias khởi tạo bằng 0: $\mathbf{b}^{sm} = [0, 0, \ldots, 0]$.
+- Weights của Softmax có std rất nhỏ ($\approx 0.00074$) vì chia cho 1352.
+
+Mục tiêu của toàn bộ quá trình huấn luyện là dạy những con số ngẫu nhiên này biến thành "kính lúp" thực sự nhận diện được nét cong, cạnh, góc.
+
+</Slide>
+
+<Slide kicker="04 · Forward Conv" title="🔍 Conv forward — minh hoạ trên một vị trí">
+
+Để chắc rằng công thức không phải chỉ là ký hiệu, ta tính tay tại vị trí $(i=10, j=10)$, filter 0.
+
+Vùng ảnh $3\times 3$ tương ứng:
+
+$$
+X_{10:13,\,10:13} = \begin{bmatrix} 0.000 & 0.067 & 0.259 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}
+$$
+
+Nhân từng phần tử với filter rồi cộng tổng:
+
+$$
+Y_{10,10,0} = (0.067)(-0.0154) + (0.259)(0.0720) + 0 + \ldots = \boxed{0.0176}
+$$
+
+Trên toàn ảnh, feature map của filter 0 có giá trị nằm trong khoảng $[-0.055,\, 0.469]$ — tức là filter này đang phản ứng mạnh ở một số vùng, yếu ở vùng khác.
+
+</Slide>
+
+<Slide kicker="04 · Forward Pool" title="📉 MaxPool forward — chọn ra winner">
+
+Tiếp tục với cùng filter 0, tại vị trí $(i=5, j=5)$ của output Pool, ta lấy cửa sổ $2\times 2$ từ feature map vừa tính:
+
+$$
+\text{window} = \begin{bmatrix} 0.0176 & 0.0037 \\ 0.0000 & 0.0000 \end{bmatrix}
+$$
+
+$$
+Y^{pool}_{5,5,0} = \max(0.0176,\, 0.0037,\, 0,\, 0) = \boxed{0.0176}
+$$
+
+Phần tử ở góc trên-trái (giá trị $0.0176$) là **winner** — toàn bộ gradient backward sau này sẽ chỉ chảy về đúng vị trí đó. Output sau Pool có shape $(13, 13, 8)$.
+
+</Slide>
+
+<Slide kicker="04 · Forward Softmax" title="🎲 Softmax forward — mạng nói gì?">
+
+Sau khi flatten và nhân ma trận $W^{sm}$, ta được 10 logits:
+
+$$
+\mathbf{z} = [0.0040,\, -0.0034,\, -0.0034,\, 0.0006,\, -0.0011,\, 0.0019,\, -0.0010,\, 0.0019,\, -0.0010,\, 0.0034]
+$$
+
+Toàn bộ logits **rất nhỏ và gần như bằng nhau** — đúng như kỳ vọng cho một mạng chưa học.
+
+Áp dụng Softmax (trừ max, exp, chia tổng), ta được phân phối xác suất:
+
+$$
+\mathbf{p} = [0.1004,\, 0.0996,\, 0.0996,\, 0.1000,\, 0.0999,\, 0.1002,\, 0.0999,\, \mathbf{0.1002},\, 0.0999,\, 0.1003]
+$$
+
+Mạng đoán là **số 0** (xác suất cao nhất 0.1004), trong khi nhãn đúng là **số 7**. Sai — nhưng đúng như mong đợi.
+
+</Slide>
+
+<Slide kicker="04 · Loss" title="📏 Loss = 2.30 ≈ ln(10)">
+
+Cross-Entropy cho ta:
+
+$$
+L = -\ln(p_7) = -\ln(0.1002) = \boxed{2.3009}
+$$
+
+Một quan sát quan trọng: $L \approx \ln(10) = 2.3026$. Đây chính xác là **Loss của một bộ phân loại đoán đều cho 10 lớp** — bằng chứng rõ ràng rằng mạng đang đoán mò.
+
+Toàn bộ phần tiếp theo sẽ trả lời: từ con số 2.30 này, mạng làm gì để lần sau Loss giảm xuống?
+
+</Slide>
+
+{/* ═══════════════════════════ PHẦN 5: ĐIỀU CHỈNH ═══════════════════════════ */}
+
+<Slide kicker="05 · Phần 5" title="🎯 Gradient xuất phát — thay số cụ thể">
+
+Khởi đầu của backward là đạo hàm Loss theo từng xác suất:
+
+$$
+\frac{\partial L}{\partial p_c} = -\frac{1}{p_{\text{label}}} \, \delta_{c,\, \text{label}}
+$$
+
+Áp dụng với $p_7 = 0.1002$:
+
+$$
+\frac{\partial L}{\partial p_7} = -\frac{1}{0.1002} = -9.9828
+$$
+
+Vector gradient (chỉ khác 0 tại $c = 7$):
+
+$$
+\frac{\partial L}{\partial \mathbf{p}} = [0,\, 0,\, 0,\, 0,\, 0,\, 0,\, 0,\, \mathbf{-9.9828},\, 0,\, 0]
+$$
+
+Giá trị âm này nói: *để giảm Loss, hãy tăng $p_7$ lên*.
+
+</Slide>
+
+<Slide kicker="05 · Qua Softmax" title="✨ ∂L/∂z = p − y — kiểm chứng bằng số">
+
+Công thức rút gọn:
+
+$$
+\frac{\partial L}{\partial \mathbf{z}} = \mathbf{p} - \mathbf{y}
+$$
+
+Thay số (label = 7):
+
+| $c$ | $p_c$ | $y_c$ | $p_c - y_c$ |
+|:---:|:---:|:---:|:---:|
+| 0 | 0.1004 | 0 | +0.1004 |
+| 1 | 0.0996 | 0 | +0.0996 |
+| ... | ... | ... | ... |
+| **7** | **0.1002** | **1** | **−0.8998** |
+| ... | ... | ... | ... |
+| 9 | 0.1003 | 0 | +0.1003 |
+
+Một tính chất đẹp: $\sum_c (p_c - y_c) = 1 - 1 = 0$ — tổng gradient luôn bằng 0, bất kể đúng sai. Sai số được *phân phối lại* chứ không tạo ra từ hư không.
+
+</Slide>
+
+<Slide kicker="05 · Cập nhật Bias" title="🎯 Bias — ma trận đầu tiên thay đổi">
+
+Quy tắc cập nhật cho bias:
+
+$$
+b_c \leftarrow b_c - \eta \cdot (p_c - y_c)
+$$
+
+Tại lớp 7 (nhãn đúng):
+
+$$
+b_7 \leftarrow 0 - 0.005 \times (-0.8998) = \boxed{+0.0045}
+$$
+
+Tại lớp 0 (sai):
+
+$$
+b_0 \leftarrow 0 - 0.005 \times (+0.1004) = \boxed{-0.0005}
+$$
+
+Toàn vector sau cập nhật:
+
+$$
+\mathbf{b}^{sm}_{\text{new}} = [\underbrace{-5e\text{-}4, \ldots, -5e\text{-}4}_{\text{6 lớp sai}},\, \mathbf{+0.0045},\, \underbrace{-5e\text{-}4, \ldots, -5e\text{-}4}_{\text{3 lớp sai}}]
+$$
+
+> Bias lớp 7 tăng lên → logit $z_7$ ở lần forward tiếp theo cũng sẽ to hơn → $p_7$ tăng → Loss giảm. Mạng vừa "học" được một chút.
+
+</Slide>
+
+<Slide kicker="05 · Cập nhật Weights" title="🧱 Weights — ma trận thứ hai thay đổi">
+
+Mỗi phần tử của ma trận trọng số được sửa theo tích của hai đại lượng — pixel input và gradient logits:
+
+$$
+\frac{\partial L}{\partial W^{sm}_{j,i}} = x^{flat}_j \cdot (p_i - y_i)
+$$
+
+$$
+W^{sm}_{j,i} \leftarrow W^{sm}_{j,i} - \eta \cdot x^{flat}_j \cdot (p_i - y_i)
+$$
+
+Vài quan sát đáng chú ý:
+
+- Nếu pixel $x_j = 0$ (vùng đen của ảnh), gradient cũng bằng 0 — weight tương ứng *không thay đổi*.
+- Pixel càng sáng, weight càng được sửa nhiều.
+- Trên toàn ma trận: $\max|\Delta W| \approx 2.3 \times 10^{-3}$, trung bình $|\Delta W| \approx 3.2 \times 10^{-5}$.
+
+Các thay đổi nhỏ là điều bình thường: gradient từ Softmax xấp xỉ $0.1$, pixel xấp xỉ $0.5$, learning rate $0.005$ → $\Delta \sim 2.5 \times 10^{-4}$.
+
+</Slide>
+
+<Slide kicker="05 · Cập nhật Filters" title="🔍 Conv Filters — ma trận thứ ba thay đổi">
+
+Gradient theo filter được tính bằng một tích chập khác — giữa ảnh đầu vào và gradient map đã được Pool đẩy về:
+
+$$
+\frac{\partial L}{\partial W^{conv}_{f,m,n}} = \sum_{i=0}^{25}\sum_{j=0}^{25} X_{i+m,\,j+n} \cdot \frac{\partial L}{\partial Y^{conv}_{i,j,f}}
+$$
+
+$$
+W^{conv}_f \leftarrow W^{conv}_f - \eta \cdot \frac{\partial L}{\partial W^{conv}_f}
+$$
+
+Lượng thay đổi thực tế cho filter 0:
+
+$$
+\Delta W^{conv}_0 \approx 10^{-5} \cdot \begin{bmatrix} 0.17 & 1.5 & -1.6 \\ -3.5 & 2.7 & 1.4 \\ 0.59 & 0.13 & 2.0 \end{bmatrix}
+$$
+
+Rất nhỏ — vì gradient từ Softmax đã nhỏ, lại qua Pool (75% bị 0) và nhân với learning rate $0.005$. Nhưng qua hàng nghìn ảnh × nhiều epoch, các bước nhỏ này **tích lại** thành filter có ý nghĩa.
+
+</Slide>
+
+<Slide kicker="05 · Tổng kết" title="📊 Trước và sau một lượt học">
+
+Toàn cảnh sự thay đổi sau đúng một lần forward + backward:
+
+| Đại lượng | Trước | Sau 1 backward |
+|---|---|---|
+| **Bias lớp 7** | 0.0000 | **+0.0045** ↑ |
+| **Bias các lớp khác** | 0.0000 | −0.0005 ↓ |
+| **Max\|ΔW softmax\|** | — | $2.3 \times 10^{-3}$ |
+| **Max\|ΔW conv\|** | — | $3.5 \times 10^{-5}$ |
+| **Loss** | 2.3009 | (chưa đo lại) |
+
+Mỗi vòng là một *bước nhỏ* nhưng đúng hướng. Để $p_7$ vượt $0.9$ trên ảnh này, cần lặp lại quá trình tương tự **hàng nghìn lần** trên nhiều ảnh khác nhau — đó là lý do training mất nhiều phút hoặc nhiều giờ.
+
+</Slide>
+
+<Slide kicker="05 · Cơ chế" title="🔄 Toàn bộ vòng lặp Training">
+
+Gộp tất cả lại, đây là toàn bộ chương trình huấn luyện ở dạng pseudo-code:
+
+```text
+for epoch in 1..N:
+   for ảnh in shuffle(train_set):
+      # ─── FORWARD ───
+      Y_conv  = Conv(ảnh)                # (26, 26, 8)
+      Y_pool  = Pool(Y_conv)             # (13, 13, 8)
+      p       = Softmax(Y_pool)          # (10,)
+      L       = -ln(p[label])            # Loss
+
+      # ─── BACKWARD ───
+      ∂L/∂p   = -1/p[label]  tại label
+      ∂L/∂z   = p − y                    ← rút gọn Softmax + CE
+      cập nhật  ∂L/∂W^sm,  ∂L/∂b^sm
+      ∂L/∂x   → reshape → Pool backward
+      ∂L/∂Y_conv  → Conv backward
+      cập nhật  ∂L/∂W^conv
+```
+
+Project chạy 3 epoch trên 1000 ảnh; trên thực tế Loss giảm đều qua từng epoch.
+
+</Slide>
+
+{/* ═══════════════════════════ KẾT LUẬN ═══════════════════════════ */}
+
+<Slide kicker="Kết luận" title="🎓 Năm điểm chốt cần nhớ">
+
+1. **CNN = Conv (trích nét) + Pool (cô đặc) + Softmax (xác suất)**, gọi là kiến trúc *LeNet-style*.
+2. **Forward** dùng để dự đoán; **Backward** dùng để học từ sai số.
+3. **Chain Rule** là toàn bộ nền tảng — và công thức cốt lõi $\partial L / \partial \mathbf{z} = \mathbf{p} - \mathbf{y}$ làm cho mọi thứ trở nên gọn gàng.
+4. Chỉ có **3 ma trận** thay đổi trong mỗi vòng: `conv.filters` (72 số), `softmax.weights` (13520 số), `softmax.biases` (10 số).
+5. Quy tắc cập nhật chung: $\theta \leftarrow \theta - \eta \cdot \partial L / \partial \theta$.
+
+**Sức mạnh của ý tưởng:** ta không bao giờ phải dạy mạng *"cạnh ngang là gì"* hay *"số 7 trông ra sao"*. Chỉ cần định nghĩa Loss và để Gradient Descent tự khám phá những filter phù hợp.
+
+</Slide>
+
+<Slide
+  variant="center"
+  kicker="Cảm ơn"
+  title="Q&A"
+  subtitle="Từ một con số đến cả mạng nơ-ron — tất cả gói gọn trong một quy tắc chain rule."
+>
+
+Mọi giá trị xuất hiện trong slide đều có thể tái lập bằng `python3 backup/trace_example.py`.
+
+</Slide>
+
+</SlideDeck>

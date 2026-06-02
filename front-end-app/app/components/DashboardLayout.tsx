@@ -46,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (pathname === "/ml/training") return "ml-training";
     if (pathname === "/ml/predict") return "ml-predict";
     if (pathname === "/slides/agentic-loop") return "slides-agentic";
+    if (pathname === "/slides/backpropagation") return "slides-backprop";
     if (pathname === "/slides") return "slides-cnn";
     if (pathname.startsWith("/doc/")) {
       const slug = pathname.replace("/doc/", "");
@@ -96,6 +97,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           label: "CNN MNIST",
         },
         {
+          key: "slides-backprop",
+          icon: <DeploymentUnitOutlined />,
+          label: "Backpropagation trong CNN",
+        },
+        {
           key: "slides-agentic",
           icon: <RobotOutlined />,
           label: "Agentic Loop & Token",
@@ -112,6 +118,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push("/ml/predict");
     } else if (key === "slides-cnn") {
       router.push("/slides");
+    } else if (key === "slides-backprop") {
+      router.push("/slides/backpropagation");
     } else if (key === "slides-agentic") {
       router.push("/slides/agentic-loop");
     } else if (key.startsWith("doc-")) {
@@ -130,6 +138,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     if (selectedKey === "slides-cnn") {
       return { title: "Slide: CNN MNIST", icon: <FundProjectionScreenOutlined style={{ color: "#a855f7" }} /> };
+    }
+    if (selectedKey === "slides-backprop") {
+      return { title: "Slide: Backpropagation trong CNN", icon: <DeploymentUnitOutlined style={{ color: "#a855f7" }} /> };
     }
     if (selectedKey === "slides-agentic") {
       return { title: "Slide: Agentic Loop & Token", icon: <RobotOutlined style={{ color: "#a855f7" }} /> };

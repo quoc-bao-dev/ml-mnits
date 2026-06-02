@@ -140,13 +140,27 @@ def capture_backward(conv, pool, softmax_layer, probs, label, lr):
     gradient = np.zeros(10)
     gradient[label] = -1 / probs[label]
 
+    # ── Snapshot Softmax weights/biases TRƯỚC backward ──
+    sm_weights_before = softmax_layer.weights.copy()
+    sm_biases_before = softmax_layer.biases.copy()
+    sm_last_input = softmax_layer.last_input.copy()  # x_flat (1352,)
+
     # Softmax backward
     grad_pool = softmax_layer.backward(gradient, lr)
+
+    # ── Snapshot Softmax weights/biases SAU backward ──
+    sm_weights_after = softmax_layer.weights.copy()
+    sm_biases_after = softmax_layer.biases.copy()
+    sm_weights_delta = sm_weights_after - sm_weights_before
+    sm_biases_delta = sm_biases_after - sm_biases_before
 
     target_one_hot = np.zeros(10)
     target_one_hot[label] = 1.0
     d_L_d_z = probs - target_one_hot
 
+    # Slice 20 hàng đầu của weights matrix (đại diện cho 20 pixel đầu) để
+    # frontend visualize được — full 1352×10 quá lớn.
+    SLICE_ROWS = 20
     softmax_step = {
         "id": 5,
         "type": "softmax_backward",
@@ -158,6 +172,17 @@ def capture_backward(conv, pool, softmax_layer, probs, label, lr):
         "d_L_d_z": d_L_d_z,
         "output_gradient_shape": list(grad_pool.shape) if grad_pool is not None else None,
         "grad_pool": grad_pool,
+        # ── 3 thành phần thay đổi: weights (slice) + biases (full) + last_input (slice) ──
+        "sm_weights_before": sm_weights_before[:SLICE_ROWS],   # (20, 10)
+        "sm_weights_after": sm_weights_after[:SLICE_ROWS],     # (20, 10)
+        "sm_weights_delta": sm_weights_delta[:SLICE_ROWS],     # (20, 10)
+        "sm_weights_slice_rows": SLICE_ROWS,
+        "sm_weights_total_rows": int(sm_weights_before.shape[0]),
+        "sm_biases_before": sm_biases_before,                  # (10,)
+        "sm_biases_after": sm_biases_after,                    # (10,)
+        "sm_biases_delta": sm_biases_delta,                    # (10,)
+        "sm_last_input": sm_last_input[:SLICE_ROWS],           # (20,)
+        "learning_rate": lr,
     }
 
     # MaxPool backward

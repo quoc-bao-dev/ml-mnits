@@ -1,6 +1,9 @@
+import { ArrowRightOutlined } from "@ant-design/icons";
 import { Select, Tabs } from "antd";
 import { useState } from "react";
+import FormulaPopover from "../common/FormulaPopover";
 import MatrixGrid from "../common/MatrixGrid";
+import TeX from "../common/TeX";
 
 interface ConvBackwardProps {
   data: any;
@@ -124,12 +127,20 @@ export default function ConvBackward({ data, step }: ConvBackwardProps) {
                 Cách tính Gradient tại ô [{m}, {n}] của Bộ lọc {fIdx}
               </div>
 
-              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 16 }}>
-                Giá trị gradient được tính bằng cách trượt ma trận lỗi 26 × 26 trên ảnh đầu vào, bắt đầu dịch chuyển một khoảng m = {m}, n = {n}:
-                <br />
-                <code style={{ color: "var(--accent-light)", fontSize: 13, fontFamily: "monospace" }}>
-                  ∂L/∂W[{m}, {n}] = Σ_(i=0..25) Σ_(j=0..25) [ Ảnh[i + {m}, j + {n}] · ∂L/∂Y[i, j] ]
-                </code>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span>Giá trị gradient được tính bằng cách trượt ma trận lỗi 26 × 26 trên ảnh đầu vào, dịch chuyển (m={m}, n={n}):</span>
+                  <FormulaPopover
+                    title="Vì sao Conv backward có dạng tích chập?"
+                    generalFormula={"\\frac{\\partial L}{\\partial W^{conv}_{f,m,n}} = \\sum_{i,j} X_{i+m,\\, j+n} \\cdot \\frac{\\partial L}{\\partial Y_{i,j,f}}"}
+                    substitutedFormula={"\\text{Vì } Y_{i,j,f} = \\sum_{m,n} X_{i+m,\\, j+n} \\cdot W_{f,m,n} \\Rightarrow \\frac{\\partial Y_{i,j,f}}{\\partial W_{f,m,n}} = X_{i+m,\\, j+n}"}
+                    result={"\\text{Cộng dồn qua mọi } (i,j) \\text{ do cùng } W \\text{ tham gia tại mọi vị trí output.}"}
+                    note="Đây cũng là một phép convolution — giữa ảnh đầu vào và 'gradient map' từ Pool backward."
+                  />
+                </div>
+                <div style={{ padding: "10px 12px", background: "rgba(99,102,241,0.08)", borderRadius: 6, border: "1px solid var(--border)" }}>
+                  <TeX math={`\\frac{\\partial L}{\\partial W_{${m},${n}}} = \\sum_{i=0}^{25} \\sum_{j=0}^{25} X_{i+${m},\\, j+${n}} \\cdot \\frac{\\partial L}{\\partial Y_{i,j,${fIdx}}}`} block />
+                </div>
               </div>
 
               <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
@@ -166,18 +177,28 @@ export default function ConvBackward({ data, step }: ConvBackwardProps) {
 
                 {/* Formula explanation and cell update result */}
                 <div className="glass-card" style={{ flex: 1, minWidth: 280, padding: 16, height: "auto" }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
-                    Kết quả tính toán & Cập nhật
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>Áp dụng công thức vào ô [{m}, {n}]</span>
+                    <FormulaPopover
+                      title="Quy tắc Gradient Descent"
+                      generalFormula={"W \\leftarrow W - \\eta \\cdot \\frac{\\partial L}{\\partial W}"}
+                      note="η (learning rate) điều khiển độ lớn bước nhảy. Quá to → nhảy quá đà. Quá nhỏ → học chậm. Project dùng η = 0.005."
+                    />
                   </div>
 
-                  <div style={{ fontFamily: "monospace", fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.8 }}>
-                    • Gradient: <br />
-                    &nbsp;&nbsp;∂L/∂W[{m},{n}] = <strong style={{ color: "var(--warning)" }}>{gradVal.toFixed(6)}</strong>
-                    <br /><br />
-                    • Phép toán cập nhật trọng số:<br />
-                    &nbsp;&nbsp;W_new = W_old - lr × Gradient<br />
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= {wBeforeVal.toFixed(6)} - {lr} × {gradVal.toFixed(6)}<br />
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <strong style={{ color: "var(--success)" }}>{wAfterVal.toFixed(6)}</strong>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Bước 1 — Gradient tổng hợp:</div>
+                      <div style={{ padding: "8px 10px", background: "rgba(245,158,11,0.08)", borderRadius: 4 }}>
+                        <TeX math={`\\frac{\\partial L}{\\partial W_{${m},${n}}} = ${gradVal.toFixed(6)}`} block />
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Bước 2 — Cập nhật trọng số:</div>
+                      <div style={{ padding: "8px 10px", background: "rgba(16,185,129,0.08)", borderRadius: 4 }}>
+                        <TeX math={`W^{new}_{${m},${n}} = ${wBeforeVal.toFixed(6)} - ${lr} \\times ${gradVal.toFixed(6)} = ${wAfterVal.toFixed(6)}`} block />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -300,6 +321,20 @@ export default function ConvBackward({ data, step }: ConvBackwardProps) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Banner gợi nhớ thành phần thay đổi */}
+      <div className="glass-card" style={{ padding: 12, background: "rgba(245,158,11,0.04)", border: "1px solid var(--border)" }}>
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          <strong style={{ color: "var(--warning)" }}>Đây là bước cuối — Conv Filters thay đổi:</strong>
+          <br />
+          <ArrowRightOutlined style={{ color: "var(--success)" }} /> <strong>Conv Filters</strong> (8 × 3 × 3 = 72 tham số)
+          {" "}— ma trận thứ 3 (và cuối cùng) bị cập nhật trong vòng backward.
+          <br />
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            (Hai ma trận trước — Softmax Biases và Weights — đã được cập nhật ở bước Softmax Backward)
+          </span>
+        </div>
+      </div>
+
       <Tabs activeKey={convBackTab} onChange={setConvBackTab} items={tabItems} type="card" />
     </div>
   );
