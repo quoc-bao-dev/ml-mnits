@@ -1,5 +1,26 @@
 import SlideDeck from "@/app/components/slides/SlideDeck";
 import Slide from "@/app/components/slides/Slide";
+import cnnImage from "./image.png";
+
+export const SectionThumb = ({ icon, from, to }) => (
+  <div style={{ display: "flex", justifyContent: "center", marginTop: "0.5rem" }}>
+    <div
+      style={{
+        width: "200px",
+        height: "200px",
+        borderRadius: "32px",
+        display: "grid",
+        placeItems: "center",
+        fontSize: "6rem",
+        color: "#fff",
+        background: `linear-gradient(135deg, ${from}, ${to})`,
+        boxShadow: `0 24px 70px -18px ${from}aa`,
+      }}
+    >
+      {icon}
+    </div>
+  </div>
+);
 
 <SlideDeck>
 
@@ -7,14 +28,12 @@ import Slide from "@/app/components/slides/Slide";
 
 <Slide
   variant="cover"
-  kicker="Đồ án · Toán cho Khoa học Máy tính"
+  kicker="Toán cho Khoa học Máy tính"
   title="Backpropagation trong CNN"
   subtitle="Từ sai số đến điều chỉnh trọng số"
 >
 
-Mạng học bằng cách nào? Cả bộ slide này tập trung trả lời đúng một câu hỏi đó — qua năm phần và một ví dụ chạy được trên máy.
-
-<div className="slide-hint">Dùng <kbd>←</kbd> <kbd>→</kbd> hoặc <kbd>Space</kbd> để chuyển slide · <kbd>F</kbd> để toàn màn hình</div>
+{/* giảng viên + nhóm */}
 
 </Slide>
 
@@ -22,21 +41,23 @@ Mạng học bằng cách nào? Cả bộ slide này tập trung trả lời đ�
 
 <Slide kicker="Mục lục" title="🗂️ Nội dung trình bày">
 
-Bài thuyết trình gồm 5 phần, đi theo đúng dòng chảy của một lượt huấn luyện:
 
-1. **CNN và cơ sở toán học** — xây nền: tensor, tích chập, chain rule, loss.
-2. **Forward Pipeline** — dữ liệu đi từ ảnh đầu vào đến xác suất 10 chữ số.
-3. **Backward Pipeline** — sai số chảy ngược, lần ra ba ma trận cần sửa.
-4. **Ví dụ thật với chữ số 7** — chạy đầy đủ một lượt forward + loss.
-5. **Điều chỉnh tham số** — áp dụng công thức, đọc ra giá trị thay đổi.
+1. **Mạng CNN là gì** — ý tưởng cốt lõi và kiến trúc.
+2. **Nền tảng toán học** — tensor, tích chập, chain rule, loss & gradient descent.
+3. **Forward trong CNN** — dữ liệu đi từ ảnh đầu vào đến xác suất 10 chữ số.
+4. **Backward trong CNN** — sai số chảy ngược, lần ra ba ma trận cần sửa.
+5. **Demo dự án** — giới thiệu dự án.
+</Slide>
 
-> Xen kẽ: vì sao chọn pipeline này, gọi tên nó là gì, và so sánh với những cách tiếp cận khác.
+{/* ═══════════════════════════ PHẦN 1: CNN LÀ GÌ ═══════════════════════════ */}
+
+<Slide variant="center" kicker="Phần 1 / 5" title="Mạng CNN là gì" subtitle="Ý tưởng cốt lõi và kiến trúc tích chập">
+
+<SectionThumb icon="🧠" from="#6366f1" to="#8b5cf6" />
 
 </Slide>
 
-{/* ═══════════════════════════ PHẦN 1: CNN & TOÁN ═══════════════════════════ */}
-
-<Slide kicker="01 · Phần 1" title="🧠 CNN là gì?">
+<Slide kicker="01 · Khái niệm" title="🧠 CNN là gì?">
 
 **CNN** (Convolutional Neural Network — *Mạng nơ-ron tích chập*) là một mạng nơ-ron đặc biệt: thay vì cho mọi neuron nhìn toàn bộ ảnh, nó dùng các **bộ lọc nhỏ trượt khắp ảnh** để khai thác cấu trúc không gian.
 
@@ -50,9 +71,34 @@ Ba ý tưởng làm nên sức mạnh của CNN:
 
 </Slide>
 
-<Slide kicker="01 · Cơ sở toán" title="📐 Tensor và ma trận">
+<Slide kicker="01 · Trực quan" title="🖼️ Kiến trúc CNN qua một hình">
 
-Trước khi nói về CNN, cần thống nhất ngôn ngữ. Mọi thứ trong mạng đều là số được tổ chức theo chiều:
+<div style={{ display: "flex", justifyContent: "center" }}>
+  <img
+    src={cnnImage.src}
+    alt="Sơ đồ kiến trúc CNN"
+    style={{
+      maxWidth: "100%",
+      maxHeight: "56vh",
+      borderRadius: "12px",
+      boxShadow: "0 10px 40px -12px rgba(0,0,0,0.4)",
+    }}
+  />
+</div>
+
+</Slide>
+
+{/* ═══════════════════════════ PHẦN 2: NỀN TẢNG TOÁN HỌC ═══════════════════════════ */}
+
+<Slide variant="center" kicker="Phần 2 / 5" title="Nền tảng toán học" subtitle="Tensor · Chain Rule · Loss & Gradient Descent">
+
+<SectionThumb icon="📐" from="#10b981" to="#14b8a6" />
+
+</Slide>
+
+<Slide kicker="02 · Cơ sở toán" title="📐 Tensor và ma trận">
+
+Trước khi nói về cơ chế của mạng, cần thống nhất ngôn ngữ. Mọi thứ trong mạng đều là số được tổ chức theo chiều:
 
 - **Vector** (1 chiều): $\mathbf{x} \in \mathbb{R}^n$ — một dãy số.
 - **Ma trận** (2 chiều): $W \in \mathbb{R}^{m \times n}$ — một bảng số.
@@ -74,7 +120,7 @@ $$
 
 </Slide>
 
-<Slide kicker="01 · Cơ sở toán" title="∂ Chain Rule — chìa khoá của backprop">
+<Slide kicker="02 · Cơ sở toán" title="∂ Chain Rule — chìa khoá của backprop">
 
 Nếu $L$ phụ thuộc vào $\mathbf{y}$, mà $\mathbf{y}$ lại phụ thuộc vào $\mathbf{x}$, thì đạo hàm của $L$ theo $\mathbf{x}$ là tích hai bước:
 
@@ -92,7 +138,7 @@ Có thể hiểu nôm na: *"đạo hàm hợp = nhân đạo hàm từng đoạn
 
 </Slide>
 
-<Slide kicker="01 · Cơ sở toán" title="🎯 Loss và Gradient Descent">
+<Slide kicker="02 · Cơ sở toán" title="🎯 Loss và Gradient Descent">
 
 **Loss** là một con số duy nhất đo *"mạng đang sai bao nhiêu"*. Trong bài toán phân loại, ta dùng Cross-Entropy:
 
@@ -113,9 +159,15 @@ trong đó $\theta$ là tham số bất kỳ (filter, weight, bias), còn $\eta$
 
 </Slide>
 
-{/* ═══════════════════════════ PHẦN 2: FORWARD ═══════════════════════════ */}
+{/* ═══════════════════════════ PHẦN 3: FORWARD ═══════════════════════════ */}
 
-<Slide kicker="02 · Phần 2" title="🏗️ Forward Pipeline — bức tranh tổng quan">
+<Slide variant="center" kicker="Phần 3 / 5" title="Forward trong CNN" subtitle="Từ ảnh đầu vào đến xác suất 10 chữ số">
+
+<SectionThumb icon="🏗️" from="#f59e0b" to="#f97316" />
+
+</Slide>
+
+<Slide kicker="03 · Tổng quan" title="🏗️ Forward Pipeline — bức tranh tổng quan">
 
 Trước khi đi sâu, đây là toàn bộ hành trình một ảnh đi qua mạng:
 
@@ -132,11 +184,11 @@ Trước khi đi sâu, đây là toàn bộ hành trình một ảnh đi qua m�
 [Xác suất]  10  →  chữ số 0–9
 ```
 
-Pipeline này có tên gọi quen thuộc trong học thuật là **LeNet-style** — tuần tự *Conv → Pool → FC → Softmax*. Ba slide tiếp theo sẽ mở từng hộp đen.
+Pipeline này có tên gọi quen thuộc trong học thuật là **LeNet-style** — tuần tự *Conv → Pool → FC → Softmax*. Ba slide tiếp theo sẽ mở từng hộp đen, kèm công thức.
 
 </Slide>
 
-<Slide kicker="02 · Lớp 1" title="🔍 Conv3x3 — phép tích chập">
+<Slide kicker="03 · Lớp 1" title="🔍 Conv3x3 — phép tích chập">
 
 Mỗi bộ lọc $3\times 3$ trượt khắp ảnh, ở mỗi vị trí cho ra một con số bằng cách nhân từng pixel với từng ô của bộ lọc rồi cộng tổng:
 
@@ -152,7 +204,7 @@ Mạng dùng đồng thời **8 bộ lọc**, nên đầu ra là một khối 3D
 
 </Slide>
 
-<Slide kicker="02 · Lớp 2" title="📉 MaxPool2 — gộp cực đại">
+<Slide kicker="03 · Lớp 2" title="📉 MaxPool2 — gộp cực đại">
 
 Sau khi trích đặc trưng, ta cần *cô đặc* lại để mạng vừa nhanh hơn vừa ít nhạy với dịch chuyển. MaxPool chia ảnh thành các ô $2\times 2$ không chồng lấp và **giữ lại giá trị lớn nhất** trong mỗi ô:
 
@@ -166,7 +218,7 @@ $$
 
 </Slide>
 
-<Slide kicker="02 · Lớp 3" title="🎲 Softmax — biến điểm số thành xác suất">
+<Slide kicker="03 · Lớp 3" title="🎲 Softmax — biến điểm số thành xác suất">
 
 Sau Pool, ta có một khối $(13, 13, 8)$ — duỗi thẳng (flatten) thành vector dài 1352 phần tử. Lớp Dense biến vector đó thành 10 *logits* (một điểm số thô cho mỗi chữ số):
 
@@ -186,40 +238,15 @@ $$
 
 </Slide>
 
-<Slide kicker="02 · Pipeline" title="❓ Vì sao chọn đúng ba lớp này?">
+{/* ═══════════════════════════ PHẦN 4: BACKWARD ═══════════════════════════ */}
 
-Mỗi lớp giải một bài toán riêng, và bỏ đi lớp nào thì mạng yếu đi lớp đó:
+<Slide variant="center" kicker="Phần 4 / 5" title="Backward trong CNN" subtitle="Sai số chảy ngược, lần ra ba ma trận cần sửa">
 
-| Lớp | Vai trò | Hậu quả nếu bỏ |
-|---|---|---|
-| **Conv** | Trích đặc trưng cục bộ (cạnh, góc) | MLP thuần phải học mọi pattern ở mọi vị trí — tốn triệu tham số |
-| **Pool** | Giảm chiều, bất biến dịch chuyển | Tính toán chậm, dễ học vẹt |
-| **Softmax** | Biến điểm số thành xác suất | Mất tính diễn giải "tin cậy bao nhiêu phần trăm" |
-
-Đây chính là khái niệm **inductive bias**: kiến trúc *biết trước* rằng ảnh có cấu trúc 2D và pattern lặp lại theo vị trí, nên cần ít dữ liệu để học hơn rất nhiều so với một mạng "vô tư".
+<SectionThumb icon="🔁" from="#f43f5e" to="#ef4444" />
 
 </Slide>
 
-<Slide kicker="02 · So sánh" title="⚖️ LeNet đứng ở đâu giữa các lựa chọn?">
-
-Cùng một bài toán MNIST có thể giải bằng nhiều cách khác nhau:
-
-| Pipeline | Đặc điểm | Accuracy MNIST | Tham số |
-|---|---|---|---|
-| **MLP thuần** (Flatten → Dense × 2) | Không khai thác cấu trúc 2D | ~95% | ~50K |
-| **K-Nearest Neighbors** | Không cần train, chậm khi predict | ~97% | 0 (giữ cả tập train) |
-| **SVM + HOG** | Trích đặc trưng thủ công | ~98% | Vài K |
-| **LeNet (project này)** | Cân bằng đơn giản và hiệu quả | ~85–95% | ~14K |
-| **LeNet-5 đầy đủ** | Thêm một tầng Conv–Pool nữa | ~99% | ~60K |
-| **Vision Transformer** | Patches + self-attention | ~99% | Hàng triệu (overkill) |
-
-LeNet *project này* là sự đánh đổi đẹp: **đủ đơn giản để giải thích từng dòng code, đủ tốt để chạy MNIST**.
-
-</Slide>
-
-{/* ═══════════════════════════ PHẦN 3: BACKWARD ═══════════════════════════ */}
-
-<Slide kicker="03 · Phần 3" title="🔁 Backward Pipeline — sai số chảy ngược">
+<Slide kicker="04 · Tổng quan" title="🔁 Backward Pipeline — sai số chảy ngược">
 
 Khi đã có Loss, ta cần lần ngược từ Loss về từng tham số để biết phải sửa cái gì. Đây chính là *backward pass*:
 
@@ -238,11 +265,11 @@ Loss  ─►  ∂L/∂p   ─►  ∂L/∂z  =  p − y          (qua Softmax + 
                             ∂L/∂W^conv             ← CẬP NHẬT
 ```
 
-Toàn bộ vòng backward chỉ chạm vào **3 ma trận**: `softmax.biases`, `softmax.weights`, và `conv.filters`. Ba slide sau lần lượt mở từng cái.
+Toàn bộ vòng backward chỉ chạm vào **3 ma trận**: `softmax.biases`, `softmax.weights`, và `conv.filters`. Các slide sau lần lượt mở từng cái, kèm công thức.
 
 </Slide>
 
-<Slide kicker="03 · Bước 0" title="🎯 Gradient xuất phát tại output">
+<Slide kicker="04 · Bước 0" title="🎯 Gradient xuất phát tại output">
 
 Hành trình bắt đầu ở đầu ra của Softmax. Vì $L = -\ln(p_{\text{label}})$, đạo hàm chỉ khác 0 tại đúng vị trí nhãn đúng:
 
@@ -254,7 +281,7 @@ Vector gradient ban đầu vì vậy rất *thưa* — gần như toàn 0, chỉ
 
 </Slide>
 
-<Slide kicker="03 · Bước 1" title="✨ Qua Softmax: công thức rút gọn đẹp">
+<Slide kicker="04 · Bước 1" title="✨ Qua Softmax: công thức rút gọn đẹp">
 
 Áp dụng Chain Rule, ta cần Jacobian của hàm Softmax:
 
@@ -272,7 +299,7 @@ $$
 
 </Slide>
 
-<Slide kicker="03 · Bước 2" title="📦 Gradient theo Weights và Biases">
+<Slide kicker="04 · Bước 2" title="📦 Gradient theo Weights và Biases">
 
 Từ $\partial L / \partial \mathbf{z}$, ba đại lượng tiếp theo được tính trực tiếp.
 
@@ -298,7 +325,7 @@ Sau cùng, vector $(1352,)$ được reshape về khối $(13, 13, 8)$ để kh�
 
 </Slide>
 
-<Slide kicker="03 · Bước 3" title="🏆 Qua MaxPool: chỉ winner mới nhận gradient">
+<Slide kicker="04 · Bước 3" title="🏆 Qua MaxPool: chỉ winner mới nhận gradient">
 
 MaxPool không có tham số học, nên không cần cập nhật gì. Việc duy nhất nó làm là *định tuyến* gradient ngược lại đúng vị trí đã "chiến thắng" lúc forward:
 
@@ -311,7 +338,7 @@ $$
 
 </Slide>
 
-<Slide kicker="03 · Bước 4" title="🔃 Qua Conv: backward cũng là một tích chập">
+<Slide kicker="04 · Bước 4" title="🔃 Qua Conv: backward cũng là một tích chập">
 
 Khi tính gradient theo filter, ta nhận ra một điều thú vị: **bản thân phép tính đó cũng là một tích chập** — giữa ảnh đầu vào và "gradient map" vừa nhận từ Pool:
 
@@ -329,7 +356,7 @@ $$
 
 </Slide>
 
-<Slide kicker="03 · Quy tắc" title="📏 Quy tắc nhớ nhanh cho mọi bước">
+<Slide kicker="04 · Quy tắc" title="📏 Quy tắc nhớ nhanh cho mọi bước">
 
 Khi viết code, cách dễ nhất để biết công thức đúng hay sai là kiểm tra shape:
 
@@ -348,9 +375,65 @@ Cùng shape thì *có thể* đúng, khác shape thì *chắc chắn* sai — đ
 
 </Slide>
 
-{/* ═══════════════════════════ PHẦN 4: VÍ DỤ ═══════════════════════════ */}
+{/* ═══════════════════════════ PHẦN 5: DEMO DỰ ÁN ═══════════════════════════ */}
 
-<Slide kicker="04 · Phần 4" title="🖼️ Một ví dụ thật: chữ số 7">
+<Slide variant="center" kicker="Phần 5 / 5" title="Demo dự án" subtitle="Giới thiệu · pipeline & vì sao · so sánh · chạy thật số 7">
+
+<SectionThumb icon="🚀" from="#0ea5e9" to="#06b6d4" />
+
+</Slide>
+
+<Slide kicker="05 · Dự án" title="📦 Giới thiệu dự án">
+
+Toàn bộ lý thuyết trên được hiện thực hoá trong một dự án **CNN thuần NumPy** — không dùng TensorFlow/PyTorch, tự viết từng dòng forward và backward.
+
+- **Bài toán:** nhận diện chữ số viết tay MNIST (0–9).
+- **Kiến trúc:** `Conv3x3 (8 filters) → MaxPool2 → Softmax(1352→10)` — đúng pipeline LeNet-style.
+- **Dữ liệu:** 1.000 ảnh train + 1.000 ảnh test, pixel chuẩn hoá về $[0,1]$.
+- **Chạy:** `python3 train.py` (~30–60 giây, 3 epoch) → `python3 predict.py` để dự đoán.
+
+| Epoch | Train Loss | Train Acc | Test Acc |
+|:---:|:---:|:---:|:---:|
+| 1 | ~1.15 | ~65% | ~74% |
+| 2 | ~0.50 | ~84% | ~80% |
+| 3 | ~0.40 | ~88% | ~81% |
+
+> Loss giảm dần + Accuracy tăng dần = bằng chứng Backpropagation và Chain Rule được code chính xác.
+
+</Slide>
+
+<Slide kicker="05 · Pipeline" title="❓ Pipeline đã chọn & vì sao chọn nó">
+
+Pipeline của dự án là **Conv → Pool → Softmax**. Mỗi lớp giải một bài toán riêng, và bỏ đi lớp nào thì mạng yếu đi lớp đó:
+
+| Lớp | Vai trò | Hậu quả nếu bỏ |
+|---|---|---|
+| **Conv** | Trích đặc trưng cục bộ (cạnh, góc) | MLP thuần phải học mọi pattern ở mọi vị trí — tốn triệu tham số |
+| **Pool** | Giảm chiều, bất biến dịch chuyển | Tính toán chậm, dễ học vẹt |
+| **Softmax** | Biến điểm số thành xác suất | Mất tính diễn giải "tin cậy bao nhiêu phần trăm" |
+
+Đây chính là khái niệm **inductive bias**: kiến trúc *biết trước* rằng ảnh có cấu trúc 2D và pattern lặp lại theo vị trí, nên cần ít dữ liệu để học hơn rất nhiều so với một mạng "vô tư". Với một đồ án toán, nó còn đủ đơn giản để **giải thích được từng dòng code**.
+
+</Slide>
+
+<Slide kicker="05 · So sánh" title="⚖️ So sánh với các pipeline khác">
+
+Cùng một bài toán MNIST có thể giải bằng nhiều cách khác nhau:
+
+| Pipeline | Đặc điểm | Accuracy MNIST | Tham số |
+|---|---|---|---|
+| **MLP thuần** (Flatten → Dense × 2) | Không khai thác cấu trúc 2D | ~95% | ~50K |
+| **K-Nearest Neighbors** | Không cần train, chậm khi predict | ~97% | 0 (giữ cả tập train) |
+| **SVM + HOG** | Trích đặc trưng thủ công | ~98% | Vài K |
+| **LeNet (project này)** | Cân bằng đơn giản và hiệu quả | ~85–95% | ~14K |
+| **LeNet-5 đầy đủ** | Thêm một tầng Conv–Pool nữa | ~99% | ~60K |
+| **Vision Transformer** | Patches + self-attention | ~99% | Hàng triệu (overkill) |
+
+LeNet *project này* là sự đánh đổi đẹp: **đủ đơn giản để giải thích từng dòng code, đủ tốt để chạy MNIST**.
+
+</Slide>
+
+<Slide kicker="05 · Chạy thật" title="🖼️ Một lượt chạy thật: chữ số 7">
 
 Lý thuyết đã đủ — giờ chạy một lượt với số liệu thật. Setup để bạn có thể tái lập trên máy mình:
 
@@ -376,7 +459,7 @@ Mọi con số ở các slide tiếp theo đều xuất phát từ `python3 back
 
 </Slide>
 
-<Slide kicker="04 · Khởi tạo" title="🎲 Ba ma trận, ba cách khởi tạo">
+<Slide kicker="05 · Khởi tạo" title="🎲 Ba ma trận, ba cách khởi tạo">
 
 Mạng vừa khởi tạo có ba ma trận chờ học:
 
@@ -392,7 +475,7 @@ Mạng vừa khởi tạo có ba ma trận chờ học:
 
 </Slide>
 
-<Slide kicker="04 · Khởi tạo" title="🔬 Filter 0 trông như thế nào?">
+<Slide kicker="05 · Khởi tạo" title="🔬 Filter 0 trông như thế nào?">
 
 Để minh hoạ, đây là bộ lọc đầu tiên ngay sau khi khởi tạo:
 
@@ -413,7 +496,7 @@ Mục tiêu của toàn bộ quá trình huấn luyện là dạy những con s�
 
 </Slide>
 
-<Slide kicker="04 · Forward Conv" title="🔍 Conv forward — minh hoạ trên một vị trí">
+<Slide kicker="05 · Forward Conv" title="🔍 Conv forward — minh hoạ trên một vị trí">
 
 Để chắc rằng công thức không phải chỉ là ký hiệu, ta tính tay tại vị trí $(i=10, j=10)$, filter 0.
 
@@ -433,7 +516,7 @@ Trên toàn ảnh, feature map của filter 0 có giá trị nằm trong khoản
 
 </Slide>
 
-<Slide kicker="04 · Forward Pool" title="📉 MaxPool forward — chọn ra winner">
+<Slide kicker="05 · Forward Pool" title="📉 MaxPool forward — chọn ra winner">
 
 Tiếp tục với cùng filter 0, tại vị trí $(i=5, j=5)$ của output Pool, ta lấy cửa sổ $2\times 2$ từ feature map vừa tính:
 
@@ -449,7 +532,7 @@ Phần tử ở góc trên-trái (giá trị $0.0176$) là **winner** — toàn 
 
 </Slide>
 
-<Slide kicker="04 · Forward Softmax" title="🎲 Softmax forward — mạng nói gì?">
+<Slide kicker="05 · Forward Softmax" title="🎲 Softmax forward — mạng nói gì?">
 
 Sau khi flatten và nhân ma trận $W^{sm}$, ta được 10 logits:
 
@@ -469,7 +552,7 @@ Mạng đoán là **số 0** (xác suất cao nhất 0.1004), trong khi nhãn đ
 
 </Slide>
 
-<Slide kicker="04 · Loss" title="📏 Loss = 2.30 ≈ ln(10)">
+<Slide kicker="05 · Loss" title="📏 Loss = 2.30 ≈ ln(10)">
 
 Cross-Entropy cho ta:
 
@@ -483,9 +566,7 @@ Toàn bộ phần tiếp theo sẽ trả lời: từ con số 2.30 này, mạng 
 
 </Slide>
 
-{/* ═══════════════════════════ PHẦN 5: ĐIỀU CHỈNH ═══════════════════════════ */}
-
-<Slide kicker="05 · Phần 5" title="🎯 Gradient xuất phát — thay số cụ thể">
+<Slide kicker="05 · Backward" title="🎯 Gradient xuất phát — thay số cụ thể">
 
 Khởi đầu của backward là đạo hàm Loss theo từng xác suất:
 
@@ -509,7 +590,7 @@ Giá trị âm này nói: *để giảm Loss, hãy tăng $p_7$ lên*.
 
 </Slide>
 
-<Slide kicker="05 · Qua Softmax" title="✨ ∂L/∂z = p − y — kiểm chứng bằng số">
+<Slide kicker="05 · Backward" title="✨ ∂L/∂z = p − y — kiểm chứng bằng số">
 
 Công thức rút gọn:
 
